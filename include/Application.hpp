@@ -8,6 +8,7 @@
 #ifndef __APPLICATION_HPP__
 #define __APPLICATION_HPP__
 
+#include <boost/noncopyable.hpp>
 #include "EventScheduler.hpp"
 #include "Configure.hpp"
 #include "Server.hpp"
@@ -15,7 +16,8 @@
 #include "TcpServer.hpp"
 
 template<typename ApplicationImplT>
-class Application
+class Application :
+	public boost::noncopyable
 {
 public:
 	static ApplicationImplT& Instance()

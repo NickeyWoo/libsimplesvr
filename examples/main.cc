@@ -12,6 +12,12 @@
 #include <sys/epoll.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+
+#include "utility.hpp"
+#include "keyutility.hpp"
+#include "storage.hpp"
+#include "hashtable.hpp"
+
 #include "EventScheduler.hpp"
 #include "IOBuffer.hpp"
 #include "TcpServer.hpp"
@@ -64,6 +70,12 @@ public:
 	}
 };
 
+struct Member {
+	uint32_t	Uin;
+	char		Name[16];
+	time_t		RegisterTime;
+} __attribute__((packed));
+
 class MyApp :
 	public Application<MyApp>
 {
@@ -72,15 +84,31 @@ public:
 	{
 		if(!Register(m_echod, "echod_interface") ||
 			!Register(m_discardd, "discardd_interface"))
+		{
+			printf("error: register server fail.\n");
 			return false;
+		}
 	
 		// other initialize
+		
+		std::map<std::string, std::string> stStorageConfig = Configure::Get("storage");
+		Seed seed(atoi(stStorageConfig["seed"].c_str()), atoi(stStorageConfig["count"].c_str()));
 
+		FileStorage fs;
+		if(FileStorage::OpenStorage(&fs, stStorageConfig["path"].c_str(), HashTable<uint32_t, Member>::GetBufferSize(seed)) < 0)
+		{
+			printf("error: open hashtable storage fail.\n");
+			return false;
+		}
+
+		m_HashTable = HashTable<uint32_t, Member>::LoadHashTable(fs, seed);
 		return true;
 	}
 
 	echod m_echod;
 	discardd m_discardd;
+
+	HashTable<uint32_t, Member> m_HashTable;
 };
 
 AppRun(MyApp);
