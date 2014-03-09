@@ -16,9 +16,30 @@
 #include "Server.hpp"
 
 IOBuffer::IOBuffer(char* buffer, size_t size) :
+	m_Position(0),
 	m_BufferSize(size),
 	m_Buffer(buffer)
 {
+}
+
+ssize_t IOBuffer::Write(const char* buffer, size_t size)
+{
+	return 0;
+}
+
+ssize_t IOBuffer::Write(const char* buffer, size_t size, size_t pos)
+{
+	return 0;
+}
+
+ssize_t IOBuffer::Read(char* buffer, size_t size)
+{
+	return 0;
+}
+
+ssize_t IOBuffer::Read(char* buffer, size_t size, size_t pos)
+{
+	return 0;
 }
 
 

@@ -7,7 +7,7 @@
 include ../Makefile.env
 
 TARGET := ../bin/server_example ../bin/client_example
-OBJS := 
+OBJS := objs/my.pb.o
 
 all: $(TARGET)
 
@@ -15,10 +15,10 @@ clean:
 	rm -rf objs/*.o
 	rm -rf $(TARGET)
 
-../bin/server_example: objs/main.o ../libs/libsimplesvr.a
+../bin/server_example: objs/main.o $(OBJS) ../libs/libsimplesvr.a
 	$(CXX) $^ -o $@ $(LIBS)
 
-../bin/client_example: objs/client.o ../libs/libsimplesvr.a
+../bin/client_example: objs/client.o $(OBJS)
 	$(CXX) $^ -o $@ $(LIBS)
 
 

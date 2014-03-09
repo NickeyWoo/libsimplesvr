@@ -3,6 +3,9 @@
 *.lo
 *.o
 
+# Data files
+*.index
+
 # Compiled Dynamic libraries
 *.so
 *.dylib

@@ -14,6 +14,8 @@
 #include "Server.hpp"
 #include "EventScheduler.hpp"
 
+#define UDPSERVER_BUFFER_SIZE	65535
+
 template<typename ServerImplT, typename ChannelDataT = void>
 class UdpServer
 {
@@ -48,8 +50,8 @@ public:
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
 	{
-		char buffer[65535];
-		ssize_t recvCount = recvfrom(pInterface->m_Channel.fd, buffer, 65535, 0, NULL, NULL);
+		char buffer[UDPSERVER_BUFFER_SIZE];
+		ssize_t recvCount = recvfrom(pInterface->m_Channel.fd, buffer, UDPSERVER_BUFFER_SIZE, 0, NULL, NULL);
 		if(recvCount == -1)
 			return;
 

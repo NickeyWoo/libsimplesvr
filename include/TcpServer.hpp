@@ -15,6 +15,7 @@
 #include "EventScheduler.hpp"
 
 #define DEFAULT_SOCK_BACKLOG	100
+#define TCPSERVER_BUFFER_SIZE	1024*1024
 
 template<typename ServerImplT, typename ChannelDataT = void>
 class TcpServer
@@ -74,8 +75,8 @@ public:
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
 	{
-		char buffer[65535];
-		ssize_t recvCount = recv(pInterface->m_Channel.fd, buffer, 65535, 0);
+		char buffer[TCPSERVER_BUFFER_SIZE];
+		ssize_t recvCount = recv(pInterface->m_Channel.fd, buffer, TCPSERVER_BUFFER_SIZE, 0);
 		if(recvCount == -1)
 			return;
 		else if(recvCount == 0)

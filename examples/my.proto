@@ -1,0 +1,14 @@
+
+package nickwu;
+
+message MyRequest
+{
+	required string Msg = 1;
+}
+
+message MyResponse
+{
+	required string Msg = 1;
+}
+
+
