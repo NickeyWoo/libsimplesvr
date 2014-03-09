@@ -25,29 +25,20 @@ public:
 	ssize_t Read(char* buffer, size_t size);
 	ssize_t Read(char* buffer, size_t size, size_t pos);
 
-	template<typename ProtoBufferT>
-	IOBuffer& operator >> (ProtoBufferT& obj)
+	template<typename T>
+	IOBuffer& operator >> (T& val);
+
+	template<typename T>
+	IOBuffer& operator << (T val);
+
+	inline char* GetBuffer()
 	{
-		uint16_t len = 0;
-		Read((char*)&len, sizeof(uint16_t));
-
-		char* buffer = (char*)malloc(len);
-		Read(buffer, len);
-
-		obj.ParseFromArray((void*)buffer, len);
-
-		free(buffer);
-		return *this;
+		return m_Buffer;
 	}
 
-	template<typename ProtoBufferT>
-	IOBuffer& operator << (ProtoBufferT obj)
+	inline size_t GetBufferSize()
 	{
-		std::string str = obj.SerializeAsString();
-		uint16_t len = str.length();
-		Write((char*)&len, sizeof(uint16_t));
-		Write(str.c_str(), len);
-		return *this;
+		return m_Position;
 	}
 
 protected:
@@ -55,5 +46,6 @@ protected:
 	size_t m_BufferSize;
 	char* m_Buffer;
 };
+
 
 #endif // define __IOBUFFER_HPP__

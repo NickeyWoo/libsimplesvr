@@ -50,8 +50,10 @@ public:
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
 	{
+		socklen_t len = sizeof(sockaddr_in);
+
 		char buffer[UDPSERVER_BUFFER_SIZE];
-		ssize_t recvCount = recvfrom(pInterface->m_Channel.fd, buffer, UDPSERVER_BUFFER_SIZE, 0, NULL, NULL);
+		ssize_t recvCount = recvfrom(pInterface->m_Channel.fd, buffer, UDPSERVER_BUFFER_SIZE, 0, (sockaddr*)&pInterface->m_Channel.address, &len);
 		if(recvCount == -1)
 			return;
 

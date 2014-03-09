@@ -62,8 +62,10 @@ public:
 
 	void OnAcceptable(ServerInterface<ChannelDataT>* pInterface)
 	{
+		socklen_t len = sizeof(sockaddr_in);
+
 		ServerInterface<ChannelDataT>* pChannelInterface = new ServerInterface<ChannelDataT>();
-		pChannelInterface->m_Channel.fd = accept4(pInterface->m_Channel.fd, NULL, NULL, SOCK_NONBLOCK|SOCK_CLOEXEC);
+		pChannelInterface->m_Channel.fd = accept4(pInterface->m_Channel.fd, (sockaddr*)&pChannelInterface->m_Channel.address, &len, SOCK_NONBLOCK|SOCK_CLOEXEC);
 
 		pChannelInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
 		pChannelInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);

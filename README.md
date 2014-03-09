@@ -1,4 +1,7 @@
 libsimplesvr
 ============
 
-Library Simple Server is NonBlock Socket Network Framework.
+Simple Server Library is NonBlock Socket Network Framework.
+
+
+

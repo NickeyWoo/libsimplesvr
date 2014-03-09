@@ -18,27 +18,13 @@
 template<typename ChannelDataT>
 struct Channel {
 	int				fd;
+	sockaddr_in		address;
 	ChannelDataT	data;
-
-	sockaddr_in GetPeerName()
-	{
-		sockaddr_in peer;
-		socklen_t len = sizeof(sockaddr_in);
-		getpeername(fd, (sockaddr*)&peer, &len);
-		return peer;
-	}
 };
 template<>
 struct Channel<void> {
 	int 			fd;
-
-	sockaddr_in GetPeerName()
-	{
-		sockaddr_in peer;
-		socklen_t len = sizeof(sockaddr_in);
-		getpeername(fd, (sockaddr*)&peer, &len);
-		return peer;
-	}
+	sockaddr_in		address;
 };
 
 template<typename ChannelDataT>

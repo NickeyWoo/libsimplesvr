@@ -25,6 +25,14 @@
 #include "Configure.hpp"
 #include "Application.hpp"
 
+struct Member {
+	uint32_t	Uin;
+	char		Name[16];
+	time_t		RegisterTime;
+} __attribute__((packed));
+
+HashTable<uint32_t, Member> g_HashTable;
+
 struct ServerStatus
 {
 	int status;
@@ -38,14 +46,12 @@ public:
 	{
 		channel.data.status = 0;
 		
-		sockaddr_in cliAddr = channel.GetPeerName();
-		printf("[%s:%d status:%d] connected.\n", inet_ntoa(cliAddr.sin_addr), ntohs(cliAddr.sin_port), channel.data.status);
+		printf("[%s:%d status:%d] connected.\n", inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port), channel.data.status);
 	}
 
 	void OnDisconnected(ChannelType& channel)
 	{
-		sockaddr_in cliAddr = channel.GetPeerName();
-		printf("[%s:%d status:%d] disconnected.\n", inet_ntoa(cliAddr.sin_addr), ntohs(cliAddr.sin_port), channel.data.status);
+		printf("[%s:%d status:%d] disconnected.\n", inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port), channel.data.status);
 
 		channel.data.status = 0;
 	}
@@ -54,36 +60,75 @@ public:
 	{
 		++channel.data.status;
 
-		sockaddr_in cliAddr = channel.GetPeerName();
-		printf("[%s:%d status:%d] say:\n", inet_ntoa(cliAddr.sin_addr), ntohs(cliAddr.sin_port), channel.data.status);
+		printf("[%s:%d status:%d] say:\n", inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port), channel.data.status);
 	}
+
+} g_echod;
+
+struct GetMemberRequest {
+	uint16_t wLen;
+	uint32_t Uin[50];
 };
 
 class discardd :
 	public UdpServer<discardd>
 {
 public:
-	void OnMessage(ChannelType& channel, IOBuffer& buffer)
+	void OnMessage(ChannelType& channel, IOBuffer& io)
 	{
-		sockaddr_in cliAddr = channel.GetPeerName();
-		printf("[%s:%d] say:\n", inet_ntoa(cliAddr.sin_addr), ntohs(cliAddr.sin_port));
-	}
-};
+		char buffer[65535];
+		IOBuffer out(buffer, 65535);
 
-struct Member {
-	uint32_t	Uin;
-	char		Name[16];
-	time_t		RegisterTime;
-} __attribute__((packed));
+		GetMemberRequest request;
+
+		io >> request.wLen;
+		out << request.wLen;
+
+		uint16_t i = 0;
+		for(; i < request.wLen; ++i)
+		{
+			io >> request.Uin[i];
+
+			Member* pValue = g_HashTable.Hash(request.Uin[i]);
+			if(!pValue)
+				continue;
+
+			out << pValue->Uin;
+			out << std::string(pValue->Name);
+			out << pValue->RegisterTime;
+		}
+		out.Write((char*)&i, sizeof(uint16_t), 0);
+
+		sendto(channel.fd, out.GetBuffer(), out.GetBufferSize(), 0, (sockaddr*)&channel.address, sizeof(sockaddr_in));
+	}
+
+} g_discardd;
 
 class MyApp :
 	public Application<MyApp>
 {
 public:
+	void InitializeData()
+	{
+		printf("initialize data ...\n");
+		uint32_t i = 0;
+		for(; i < 1000000; ++i)
+		{
+			Member* pMember = g_HashTable.Hash(i, true);
+			if(!pMember)
+				break;
+
+			pMember->Uin = i;
+			strcpy(pMember->Name, (boost::format("%08u") % i).str().c_str());
+			pMember->RegisterTime = time(NULL);
+		}
+		printf("initialize data complete(%u).\n", i);
+	}
+
 	bool Initialize(int argc, char* argv[])
 	{
-		if(!Register(m_echod, "echod_interface") ||
-			!Register(m_discardd, "discardd_interface"))
+		if(!Register(g_echod, "echod_interface") ||
+			!Register(g_discardd, "discardd_interface"))
 		{
 			printf("error: register server fail.\n");
 			return false;
@@ -94,24 +139,27 @@ public:
 		std::map<std::string, std::string> stStorageConfig = Configure::Get("storage");
 		Seed seed(atoi(stStorageConfig["seed"].c_str()), atoi(stStorageConfig["count"].c_str()));
 
-		FileStorage fs;
-		if(FileStorage::OpenStorage(&fs, stStorageConfig["path"].c_str(), HashTable<uint32_t, Member>::GetBufferSize(seed)) < 0)
+		SharedMemoryStorage sms;
+		if(SharedMemoryStorage::OpenStorage(&sms, 
+						strtoul(stStorageConfig["shmkey"].c_str(), NULL, 16),
+						HashTable<uint32_t, Member>::GetBufferSize(seed)) < 0)
 		{
 			printf("error: open hashtable storage fail.\n");
 			return false;
 		}
 
-		m_HashTable = HashTable<uint32_t, Member>::LoadHashTable(fs, seed);
+		g_HashTable = HashTable<uint32_t, Member>::LoadHashTable(sms, seed);
+
+		InitializeData();
 		return true;
 	}
-
-	echod m_echod;
-	discardd m_discardd;
-
-	HashTable<uint32_t, Member> m_HashTable;
 };
 
 AppRun(MyApp);
+
+
+
+
 
 
 
