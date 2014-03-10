@@ -27,7 +27,11 @@ public:
 		svr.m_OnMessageCallback = boost::bind(&ServerImplT::OnMessage, &svr, _1, _2);
 
 		ServerInterface<ChannelDataT>* pInterface = &svr.m_ServerInterface;
+#ifdef VERSION_OLD
+		pInterface->m_Channel.fd = socket(PF_INET, SOCK_DGRAM, 0);
+#else
 		pInterface->m_Channel.fd = socket(PF_INET, SOCK_DGRAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+#endif
 		if(pInterface->m_Channel.fd == -1)
 			return -1;
 

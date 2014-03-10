@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <string>
+#include <exception>
 
 class IOBuffer :
 	public boost::noncopyable
@@ -20,10 +21,10 @@ public:
 	IOBuffer(char* buffer, size_t size);
 
 	ssize_t Write(const char* buffer, size_t size);
-	ssize_t Write(const char* buffer, size_t size, size_t pos);
+	ssize_t Write(const char* buffer, size_t size, size_t pos) const;
 
 	ssize_t Read(char* buffer, size_t size);
-	ssize_t Read(char* buffer, size_t size, size_t pos);
+	ssize_t Read(char* buffer, size_t size, size_t pos) const;
 
 	template<typename T>
 	IOBuffer& operator >> (T& val);
@@ -37,6 +38,11 @@ public:
 	}
 
 	inline size_t GetBufferSize()
+	{
+		return m_BufferSize;
+	}
+
+	inline size_t GetPosition()
 	{
 		return m_Position;
 	}

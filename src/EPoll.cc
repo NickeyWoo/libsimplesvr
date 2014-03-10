@@ -14,10 +14,17 @@
 #include <netinet/in.h>
 #include "EPoll.hpp"
 
+#ifdef VERSION_OLD
+EPoll::EPoll() :
+	m_epfd(epoll_create(1000))
+{
+}
+#else
 EPoll::EPoll() :
 	m_epfd(epoll_create1(EPOLL_CLOEXEC))
 {
 }
+#endif
 
 EPoll::~EPoll()
 {

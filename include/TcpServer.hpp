@@ -30,7 +30,11 @@ public:
 		svr.m_OnMessageCallback = boost::bind(&ServerImplT::OnMessage, &svr, _1, _2);
 
 		ServerInterface<ChannelDataT>* pInterface = &svr.m_ServerInterface;
+#ifdef VERSION_OLD
+		pInterface->m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
+#else
 		pInterface->m_Channel.fd = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+#endif
 		if(pInterface->m_Channel.fd == -1)
 			return -1;
 
@@ -65,7 +69,11 @@ public:
 		socklen_t len = sizeof(sockaddr_in);
 
 		ServerInterface<ChannelDataT>* pChannelInterface = new ServerInterface<ChannelDataT>();
+#ifdef VERSION_OLD
+		pChannelInterface->m_Channel.fd = accept(pInterface->m_Channel.fd, (sockaddr*)&pChannelInterface->m_Channel.address, &len);
+#else
 		pChannelInterface->m_Channel.fd = accept4(pInterface->m_Channel.fd, (sockaddr*)&pChannelInterface->m_Channel.address, &len, SOCK_NONBLOCK|SOCK_CLOEXEC);
+#endif
 
 		pChannelInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
 		pChannelInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);

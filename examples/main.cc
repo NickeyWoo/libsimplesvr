@@ -74,20 +74,20 @@ class discardd :
 	public UdpServer<discardd>
 {
 public:
-	void OnMessage(ChannelType& channel, IOBuffer& io)
+	void OnMessage(ChannelType& channel, IOBuffer& in)
 	{
 		char buffer[65535];
 		IOBuffer out(buffer, 65535);
 
 		GetMemberRequest request;
 
-		io >> request.wLen;
+		in >> request.wLen;
 		out << request.wLen;
 
 		uint16_t i = 0;
 		for(; i < request.wLen; ++i)
 		{
-			io >> request.Uin[i];
+			in >> request.Uin[i];
 
 			Member* pValue = g_HashTable.Hash(request.Uin[i]);
 			if(!pValue)
@@ -99,7 +99,7 @@ public:
 		}
 		out.Write((char*)&i, sizeof(uint16_t), 0);
 
-		sendto(channel.fd, out.GetBuffer(), out.GetBufferSize(), 0, (sockaddr*)&channel.address, sizeof(sockaddr_in));
+		sendto(channel.fd, out.GetBuffer(), out.GetPosition(), 0, (sockaddr*)&channel.address, sizeof(sockaddr_in));
 	}
 
 } g_discardd;

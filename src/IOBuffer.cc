@@ -45,7 +45,7 @@ ssize_t IOBuffer::Write(const char* buffer, size_t size)
 	return size;
 }
 
-ssize_t IOBuffer::Write(const char* buffer, size_t size, size_t pos)
+ssize_t IOBuffer::Write(const char* buffer, size_t size, size_t pos) const
 {
 	if(!m_Buffer || !buffer || size == 0 || pos > m_BufferSize)
 		return 0;
@@ -70,7 +70,7 @@ ssize_t IOBuffer::Read(char* buffer, size_t size)
 	return size;
 }
 
-ssize_t IOBuffer::Read(char* buffer, size_t size, size_t pos)
+ssize_t IOBuffer::Read(char* buffer, size_t size, size_t pos) const
 {
 	if(!m_Buffer || !buffer || size == 0 || pos > m_BufferSize)
 		return 0;
@@ -85,139 +85,210 @@ ssize_t IOBuffer::Read(char* buffer, size_t size, size_t pos)
 template<>
 IOBuffer& IOBuffer::operator >> (char& cbyte)
 {
-	Read(&cbyte, sizeof(char));
+	if(m_Position + 1 > m_BufferSize)
+		return *this;
+
+	cbyte = m_Buffer[m_Position];
+	++m_Position;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator << (char cbyte)
 {
-	Write(&cbyte, sizeof(char));
+	if(m_Position + 1 > m_BufferSize)
+		return *this;
+
+	m_Buffer[m_Position] = cbyte;
+	++m_Position;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator >> (unsigned char& cbyte)
 {
-	Read((char*)&cbyte, sizeof(unsigned char));
+	if(m_Position + 1 > m_BufferSize)
+		return *this;
+
+	cbyte = (unsigned char)m_Buffer[m_Position];
+	++m_Position;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator << (unsigned char cbyte)
 {
-	Write((char*)&cbyte, sizeof(unsigned char));
+	if(m_Position + 1 > m_BufferSize)
+		return *this;
+
+	m_Buffer[m_Position] = (char)cbyte;
+	++m_Position;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator >> (int16_t& wVal)
 {
-	Read((char*)&wVal, sizeof(int16_t));
+	if(m_Position + 2 > m_BufferSize)
+		return *this;
+
+	wVal = *((int16_t*)(m_Buffer + m_Position));
 	wVal = ntohs(wVal);
+	m_Position += 2;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator << (int16_t wVal)
 {
+	if(m_Position + 2 > m_BufferSize)
+		return *this;
+
 	wVal = htons(wVal);
-	Write((char*)&wVal, sizeof(int16_t));
+	*((int16_t*)(m_Buffer + m_Position)) = wVal;
+	m_Position += 2;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator >> (uint16_t& wVal)
 {
-	Read((char*)&wVal, sizeof(uint16_t));
+	if(m_Position + 2 > m_BufferSize)
+		return *this;
+
+	wVal = *((uint16_t*)(m_Buffer + m_Position));
 	wVal = ntohs(wVal);
+	m_Position += 2;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator << (uint16_t wVal)
 {
+	if(m_Position + 2 > m_BufferSize)
+		return *this;
+
 	wVal = htons(wVal);
-	Write((char*)&wVal, sizeof(uint16_t));
+	*((uint16_t*)(m_Buffer + m_Position)) = wVal;
+	m_Position += 2;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator >> (int32_t& dwVal)
 {
-	Read((char*)&dwVal, sizeof(int32_t));
+	if(m_Position + 4 > m_BufferSize)
+		return *this;
+
+	dwVal = *((int32_t*)(m_Buffer + m_Position));
 	dwVal = ntohl(dwVal);
+	m_Position += 4;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator << (int32_t dwVal)
 {
+	if(m_Position + 4 > m_BufferSize)
+		return *this;
+
 	dwVal = htonl(dwVal);
-	Write((char*)&dwVal, sizeof(int32_t));
+	*((int32_t*)(m_Buffer + m_Position)) = dwVal;
+	m_Position += 4;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator >> (uint32_t& dwVal)
 {
-	Read((char*)&dwVal, sizeof(uint32_t));
+	if(m_Position + 4 > m_BufferSize)
+		return *this;
+
+	dwVal = *((uint32_t*)(m_Buffer + m_Position));
 	dwVal = ntohl(dwVal);
+	m_Position += 4;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator << (uint32_t dwVal)
 {
+	if(m_Position + 4 > m_BufferSize)
+		return *this;
+
 	dwVal = htonl(dwVal);
-	Write((char*)&dwVal, sizeof(uint32_t));
+	*((uint32_t*)(m_Buffer + m_Position)) = dwVal;
+	m_Position += 4;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator >> (int64_t& ddwVal)
 {
-	Read((char*)&ddwVal, sizeof(int64_t));
+	if(m_Position + 8 > m_BufferSize)
+		return *this;
+
+	ddwVal = *((int64_t*)(m_Buffer + m_Position));
 	ddwVal = ntohll(ddwVal);
+	m_Position += 8;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator << (int64_t ddwVal)
 {
+	if(m_Position + 8 > m_BufferSize)
+		return *this;
+
 	ddwVal = htonll(ddwVal);
-	Write((char*)&ddwVal, sizeof(int64_t));
+	*((int64_t*)(m_Buffer + m_Position)) = ddwVal;
+	m_Position += 8;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator >> (uint64_t& ddwVal)
 {
-	Read((char*)&ddwVal, sizeof(uint64_t));
+	if(m_Position + 8 > m_BufferSize)
+		return *this;
+
+	ddwVal = *((uint64_t*)(m_Buffer + m_Position));
 	ddwVal = ntohll(ddwVal);
+	m_Position += 8;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator << (uint64_t ddwVal)
 {
+	if(m_Position + 8 > m_BufferSize)
+		return *this;
+
 	ddwVal = htonll(ddwVal);
-	Write((char*)&ddwVal, sizeof(uint64_t));
+	*((uint64_t*)(m_Buffer + m_Position)) = ddwVal;
+	m_Position += 8;
 	return *this;
 }
 
 template<>
 IOBuffer& IOBuffer::operator >> (std::string& str)
 {
-	uint16_t len = 0;
-	Read((char*)&len, sizeof(uint16_t));
-	len = ntohs(len);
+	if(m_Position + 2 > m_BufferSize)
+		return *this;
 
-	char* buffer = (char*)malloc(len);
+	uint16_t wlen = *((uint16_t*)(m_Buffer + m_Position));
+	wlen = ntohs(wlen);
 
-	Read(buffer, len);
-	str = std::string(buffer, len);
+	if(m_Position + 2 + wlen > m_BufferSize)
+		return *this;
 
+	m_Position += 2;
+
+	char* buffer = (char*)malloc(wlen);
+	memcpy(buffer, (m_Buffer + m_Position), wlen);
+	m_Position += wlen;
+
+	str = std::string(buffer, wlen);
 	free(buffer);
 	return *this;
 }
@@ -225,9 +296,15 @@ IOBuffer& IOBuffer::operator >> (std::string& str)
 template<>
 IOBuffer& IOBuffer::operator << (std::string str)
 {
-	uint16_t len = htons(str.length());
-	Write((char*)&len, sizeof(uint16_t));
-	Write(str.c_str(), str.length());
+	if(m_Position + 2 + str.length() > m_BufferSize)
+		return *this;
+
+	uint16_t wlen = htons(str.length());
+	*((uint16_t*)(m_Buffer + m_Position)) = wlen;
+	m_Position += 2;
+
+	memcpy((m_Buffer + m_Position), str.c_str(), str.length());
+	m_Position += wlen;
 	return *this;
 }
 
