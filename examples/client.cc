@@ -23,7 +23,11 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
+#ifdef VERSION_OLD
 	int fd = socket(PF_INET, SOCK_DGRAM|SOCK_CLOEXEC, 0);
+#else
+	int fd = socket(PF_INET, SOCK_DGRAM|SOCK_CLOEXEC, 0);
+#endif
 	if(fd == -1)
 	{
 		printf("error: create socket fail, %s.\n", strerror(errno));
