@@ -5,6 +5,7 @@
 
 # Data files
 *.index
+*.swp
 
 # Compiled Dynamic libraries
 *.so
