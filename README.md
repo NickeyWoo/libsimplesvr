@@ -71,7 +71,7 @@ AppRun(MyApp);
 
 [More examples...][1]
 
-  [1]: https//github.com/NickeyWoo/libsimplesvr/tree/master/examples
+  [1]: https://github.com/NickeyWoo/libsimplesvr/tree/master/examples
 
 
 
