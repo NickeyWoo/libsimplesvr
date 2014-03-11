@@ -77,9 +77,6 @@ public:
 	void OnMessage(ChannelType& channel, IOBuffer& in)
 	{
 		char buffer[65535];
-		*((uint16_t*)buffer) = 1;
-
-	/*
 		IOBuffer out(buffer, 65535);
 
 		GetMemberRequest request;
@@ -101,7 +98,6 @@ public:
 			out << pValue->RegisterTime;
 		}
 		out.Write((char*)&i, sizeof(uint16_t), 0);
-	*/
 		
 		sendto(channel.fd, buffer, 100, 0, (sockaddr*)&channel.address, sizeof(sockaddr_in));
 	}

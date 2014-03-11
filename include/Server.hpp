@@ -20,19 +20,23 @@ template<typename ChannelDataT>
 struct Channel {
 	int				fd;
 	sockaddr_in		address;
+	boost::function<ssize_t(Channel<ChannelDataT>*, IOBuffer&)> IOReader;
+	boost::function<ssize_t(Channel<ChannelDataT>*, IOBuffer&)> IOWriter;
+
 	ChannelDataT	data;
 };
 template<>
 struct Channel<void> {
 	int 			fd;
 	sockaddr_in		address;
+	boost::function<ssize_t(Channel<void>*, IOBuffer&)> IOReader;
+	boost::function<ssize_t(Channel<void>*, IOBuffer&)> IOWriter;
 };
 
 template<typename ChannelDataT>
 class ServerInterface
 {
 public:
-
 	inline void OnWriteable()
 	{
 		m_WriteableCallback(this);
