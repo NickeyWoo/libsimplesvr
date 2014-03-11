@@ -64,6 +64,16 @@ public:
 		return 0;
 	}
 
+	ssize_t Read(Channel<ChannelDataT>* pChannel, IOBuffer& io)
+	{
+		return recv(pChannel->fd, buffer, 65535, 0);
+	}
+
+	ssize_t Write(Channel<ChannelDataT>* pChannel, IOBuffer& io)
+	{
+		return send(pChannel->fd, buffer, 65535, 0);
+	}
+
 	void OnAcceptable(ServerInterface<ChannelDataT>* pInterface)
 	{
 		socklen_t len = sizeof(sockaddr_in);
@@ -77,6 +87,9 @@ public:
 
 		pChannelInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
 		pChannelInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);
+
+		pChannelInterface->m_Channel.IOReader = boost::bind(&ServerImplT::Read, this, _1, _2);
+		pChannelInterface->m_Channel.IOWriter = boost::bind(&ServerImplT::Write, this, _1, _2);
 
 		m_pScheduler->Register(pChannelInterface, EventScheduler::PollType::POLLIN);
 

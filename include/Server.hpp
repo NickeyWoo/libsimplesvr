@@ -24,6 +24,18 @@ struct Channel {
 	boost::function<ssize_t(Channel<ChannelDataT>*, IOBuffer&)> IOWriter;
 
 	ChannelDataT	data;
+
+	inline Channel& operator >> (IOBuffer& io)
+	{
+		IOReader(this, io);
+		return *this;
+	}
+
+	inline Channel& operator << (IOBuffer& io)
+	{
+		IOWriter(this, io);
+		return *this;
+	}
 };
 template<>
 struct Channel<void> {
@@ -31,6 +43,18 @@ struct Channel<void> {
 	sockaddr_in		address;
 	boost::function<ssize_t(Channel<void>*, IOBuffer&)> IOReader;
 	boost::function<ssize_t(Channel<void>*, IOBuffer&)> IOWriter;
+
+	inline Channel& operator >> (IOBuffer& io)
+	{
+		IOReader(this, io);
+		return *this;
+	}
+
+	inline Channel& operator << (IOBuffer& io)
+	{
+		IOWriter(this, io);
+		return *this;
+	}
 };
 
 template<typename ChannelDataT>

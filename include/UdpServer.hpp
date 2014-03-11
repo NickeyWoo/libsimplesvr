@@ -44,8 +44,22 @@ public:
 		pInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, &svr, _1);
 		pInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, &svr, _1);
 
+		pInterface->m_Channel.IOReader = boost::bind(&ServerImplT::Read, &svr, _1, _2);
+		pInterface->m_Channel.IOWriter = boost::bind(&ServerImplT::Write, &svr, _1, _2);
+
 		pScheduler->Register(pInterface, EventScheduler::PollType::POLLIN);
 		return 0;
+	}
+
+	ssize_t Read(Channel<ChannelDataT>* pChannel, IOBuffer& io)
+	{
+		socklen_t len = sizeof(sockaddr_in);
+		return recvfrom(pChannel->fd, buffer, UDPSERVER_BUFFER_SIZE, 0, (sockaddr*)&pChannel->address, &len);
+	}
+
+	ssize_t Write(Channel<ChannelDataT>* pChannel, IOBuffer& io)
+	{
+		return sendto(pChannel->fd, buffer, UDPSERVER_BUFFER_SIZE, 0, (const sockaddr*)&pChannel->address, sizeof(sockaddr_in));
 	}
 
 	void OnWriteable(ServerInterface<ChannelDataT>* pInterface)
@@ -54,14 +68,9 @@ public:
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
 	{
-		socklen_t len = sizeof(sockaddr_in);
-
 		char buffer[UDPSERVER_BUFFER_SIZE];
-		ssize_t recvCount = recvfrom(pInterface->m_Channel.fd, buffer, UDPSERVER_BUFFER_SIZE, 0, (sockaddr*)&pInterface->m_Channel.address, &len);
-		if(recvCount == -1)
-			return;
-
 		IOBuffer in(buffer, recvCount);
+
 		LDEBUG_CLOCK_TRACE((boost::format("being udp [%s:%d] message process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 		m_OnMessageCallback(pInterface->m_Channel, in);
 		LDEBUG_CLOCK_TRACE((boost::format("end udp [%s:%d] message process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
