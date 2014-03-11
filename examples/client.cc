@@ -24,7 +24,7 @@ int main(int argc, char* argv[])
 	}
 
 #ifdef VERSION_OLD
-	int fd = socket(PF_INET, SOCK_DGRAM|SOCK_CLOEXEC, 0);
+	int fd = socket(PF_INET, SOCK_DGRAM, 0);
 #else
 	int fd = socket(PF_INET, SOCK_DGRAM|SOCK_CLOEXEC, 0);
 #endif

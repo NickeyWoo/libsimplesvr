@@ -57,12 +57,16 @@ public:
 			printf("error: register server fail.\n");
 			return false;
 		}
+
+		return true;
 	}
 
 private:
 	echod m_echod;
 	discardd m_discardd;
 };
+
+AppRun(MyApp);
 ```
 
 [More examples...][1]

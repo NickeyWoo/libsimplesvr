@@ -61,8 +61,10 @@ public:
 		if(recvCount == -1)
 			return;
 
-		IOBuffer io(buffer, recvCount);
-		m_OnMessageCallback(pInterface->m_Channel, io);
+		IOBuffer in(buffer, recvCount);
+		LDEBUG_CLOCK_TRACE((boost::format("being udp [%s:%d] message process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+		m_OnMessageCallback(pInterface->m_Channel, in);
+		LDEBUG_CLOCK_TRACE((boost::format("end udp [%s:%d] message process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 	}
 
 	boost::function<void(ChannelType&, IOBuffer&)> m_OnMessageCallback;

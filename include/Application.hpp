@@ -29,6 +29,8 @@ public:
 	template<typename ServerT>
 	bool Register(ServerT& svr, const char* szConfigName)
 	{
+		LDEBUG_CLOCK_TRACE((boost::format("register server [%s]") % szConfigName).str().c_str());
+
 		std::map<std::string, std::string> stServerInterface = Configure::Get(szConfigName);
 
 		sockaddr_in addr;
@@ -83,6 +85,7 @@ public:
 
 	void Run()
 	{
+		LDEBUG_CLOCK_TRACE("start event dispatch loop...");
 		m_Scheduler.Dispatch();
 	}
 

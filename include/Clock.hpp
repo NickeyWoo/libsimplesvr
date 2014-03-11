@@ -13,6 +13,20 @@
 #include <string>
 #include <time.h>
 
+#ifdef DEBUG
+	#define DEBUG_CLOCK_TRACE(msg)		\
+				Clock::Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
+#else
+	#define DEBUG_CLOCK_TRACE(msg)
+#endif
+
+#ifdef LDEBUG
+	#define LDEBUG_CLOCK_TRACE(msg)	\
+				Clock::Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
+#else
+	#define LDEBUG_CLOCK_TRACE(msg)
+#endif
+
 class Clock
 {
 public:

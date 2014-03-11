@@ -80,7 +80,9 @@ public:
 
 		m_pScheduler->Register(pChannelInterface, EventScheduler::PollType::POLLIN);
 
+		LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] connected process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 		m_OnConnectedCallback(pChannelInterface->m_Channel);
+		LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] connected process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 	}
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
@@ -91,7 +93,9 @@ public:
 			return;
 		else if(recvCount == 0)
 		{
+			LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] disconnected process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 			m_OnDisconnectedCallback(pInterface->m_Channel);
+			LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] disconnected process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 
 			m_pScheduler->UnRegister(pInterface);
 			shutdown(pInterface->m_Channel.fd, SHUT_RDWR);
@@ -101,7 +105,9 @@ public:
 		else
 		{
 			IOBuffer io(buffer, recvCount);
+			LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] message process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 			m_OnMessageCallback(pInterface->m_Channel, io);
+			LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] message process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 		}
 	}
 

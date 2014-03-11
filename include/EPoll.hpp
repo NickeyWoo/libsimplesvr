@@ -32,7 +32,7 @@ public:
 	int EventCtl(int opeartor, uint32_t events, int fd, void* ptr);
 
 	template<typename DataT>
-	int WaitEvent(ServerInterface<DataT>** ppInterface, uint32_t* pEvents, int timeout)
+	inline int WaitEvent(ServerInterface<DataT>** ppInterface, uint32_t* pEvents, int timeout)
 	{
 		epoll_event ev;
 		int ret = epoll_wait(m_epfd, &ev, 1, timeout);

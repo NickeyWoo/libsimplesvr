@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
+#include "Clock.hpp"
 #include "IOBuffer.hpp"
 
 template<typename ChannelDataT>
@@ -32,12 +33,12 @@ class ServerInterface
 {
 public:
 
-	void OnWriteable()
+	inline void OnWriteable()
 	{
 		m_WriteableCallback(this);
 	}
 
-	void OnReadable()
+	inline void OnReadable()
 	{
 		m_ReadableCallback(this);
 	}
