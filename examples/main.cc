@@ -19,6 +19,7 @@
 #include "hashtable.hpp"
 
 #include "EventScheduler.hpp"
+#include "Channel.hpp"
 #include "IOBuffer.hpp"
 #include "TcpServer.hpp"
 #include "UdpServer.hpp"
@@ -99,7 +100,7 @@ public:
 		}
 		out.Write((char*)&i, sizeof(uint16_t), 0);
 		
-		sendto(channel.fd, buffer, 100, 0, (sockaddr*)&channel.address, sizeof(sockaddr_in));
+		channel << out;
 	}
 
 } g_discardd;

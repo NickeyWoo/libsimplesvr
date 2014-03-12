@@ -14,48 +14,7 @@
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 #include "Clock.hpp"
-#include "IOBuffer.hpp"
-
-template<typename ChannelDataT>
-struct Channel {
-	int				fd;
-	sockaddr_in		address;
-	boost::function<ssize_t(Channel<ChannelDataT>*, IOBuffer&)> IOReader;
-	boost::function<ssize_t(Channel<ChannelDataT>*, IOBuffer&)> IOWriter;
-
-	ChannelDataT	data;
-
-	inline Channel& operator >> (IOBuffer& io)
-	{
-		IOReader(this, io);
-		return *this;
-	}
-
-	inline Channel& operator << (IOBuffer& io)
-	{
-		IOWriter(this, io);
-		return *this;
-	}
-};
-template<>
-struct Channel<void> {
-	int 			fd;
-	sockaddr_in		address;
-	boost::function<ssize_t(Channel<void>*, IOBuffer&)> IOReader;
-	boost::function<ssize_t(Channel<void>*, IOBuffer&)> IOWriter;
-
-	inline Channel& operator >> (IOBuffer& io)
-	{
-		IOReader(this, io);
-		return *this;
-	}
-
-	inline Channel& operator << (IOBuffer& io)
-	{
-		IOWriter(this, io);
-		return *this;
-	}
-};
+#include "Channel.hpp"
 
 template<typename ChannelDataT>
 class ServerInterface
