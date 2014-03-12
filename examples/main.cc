@@ -57,7 +57,7 @@ public:
 		channel.data.status = 0;
 	}
 
-	void OnMessage(ChannelType& channel, IOBuffer& buffer)
+	void OnMessage(ChannelType& channel, IOBufferType& buffer)
 	{
 		++channel.data.status;
 
@@ -75,12 +75,12 @@ class discardd :
 	public UdpServer<discardd>
 {
 public:
-	void OnMessage(ChannelType& channel, IOBuffer& in)
+	void OnMessage(ChannelType& channel, IOBufferType& in)
 	{
-		char buffer[65535];
-		IOBuffer out(buffer, 65535);
+		IOBufferType out;
 
 		GetMemberRequest request;
+		bzero(&request, sizeof(GetMemberRequest));
 
 		in >> request.wLen;
 		out << request.wLen;

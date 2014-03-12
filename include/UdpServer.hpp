@@ -15,11 +15,12 @@
 #include "IOBuffer.hpp"
 #include "EventScheduler.hpp"
 
-template<typename ServerImplT, typename ChannelDataT = void>
+template<typename ServerImplT, typename ChannelDataT = void, size_t IOBufferSize = IOBUFFER_DEFAULT_SIZE>
 class UdpServer
 {
 public:
 	typedef Channel<ChannelDataT> ChannelType;
+	typedef IOBuffer<IOBufferSize> IOBufferType;
 
 	static int Listen(ServerImplT& svr, EventScheduler* pScheduler, sockaddr_in& addr)
 	{
@@ -53,6 +54,9 @@ public:
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
 	{
+		IOBufferType in;
+		pInterface->m_Channel >> in;
+
 		LDEBUG_CLOCK_TRACE((boost::format("being udp [%s:%d] message process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 		m_OnMessageCallback(pInterface->m_Channel, in);
 		LDEBUG_CLOCK_TRACE((boost::format("end udp [%s:%d] message process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());

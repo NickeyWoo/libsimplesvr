@@ -44,14 +44,10 @@ public:
 			uint32_t events;
 			if(m_Poll.WaitEvent(&pInterface, &events, -1) > 0)
 			{
-				LDEBUG_CLOCK_TRACE((boost::format("begin event(%d) process.") % events).str().c_str());
-
 				if((events & PollT::POLLIN) == PollT::POLLIN)
 					pInterface->OnReadable();
 				else if((events & PollT::POLLOUT) == PollT::POLLOUT)
 					pInterface->OnWriteable();
-
-				LDEBUG_CLOCK_TRACE((boost::format("end event(%d) process.") % events).str().c_str());
 			}
 		}
 	}

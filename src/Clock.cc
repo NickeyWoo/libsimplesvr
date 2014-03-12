@@ -55,7 +55,7 @@ void Clock::Dump()
 	for(; iter != m_ClockList.end(); ++iter)
 	{
 		uint64_t cur = iter->second.tv_sec * 1000000000 + iter->second.tv_nsec;
-		printf("[+%lu] %s\n", cur - last, iter->first.c_str());
+		printf("[+%.02fms] %s\n", (double)(cur - last) / 1000000, iter->first.c_str());
 		last = cur;
 	}
 }
