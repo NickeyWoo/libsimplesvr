@@ -14,7 +14,7 @@
 #include <netinet/in.h>
 #include "EPoll.hpp"
 
-#ifdef VERSION_OLD
+#ifdef __USE_GNU
 EPoll::EPoll() :
 	m_epfd(epoll_create(1000))
 {

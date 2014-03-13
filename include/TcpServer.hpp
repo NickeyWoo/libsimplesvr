@@ -30,10 +30,10 @@ public:
 		svr.m_OnMessageCallback = boost::bind(&ServerImplT::OnMessage, &svr, _1, _2);
 
 		ServerInterface<ChannelDataT>* pInterface = &svr.m_ServerInterface;
-#ifdef VERSION_OLD
-		pInterface->m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
-#else
+#ifdef __USE_GNU
 		pInterface->m_Channel.fd = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+#else
+		pInterface->m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
 #endif
 		if(pInterface->m_Channel.fd == -1)
 			return -1;
@@ -60,7 +60,11 @@ public:
 		pInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnAcceptable, &svr, _1);
 		
 		svr.m_pScheduler = pScheduler;
-		svr.m_pScheduler->Register(pInterface, EventScheduler::PollType::POLLIN);
+		if(svr.m_pScheduler->Register(pInterface, EventScheduler::PollType::POLLIN) == -1)
+		{
+			close(pInterface->m_Channel.fd);
+			return -1;
+		}
 		return 0;
 	}
 
@@ -69,20 +73,38 @@ public:
 		socklen_t len = sizeof(sockaddr_in);
 
 		ServerInterface<ChannelDataT>* pChannelInterface = new ServerInterface<ChannelDataT>();
-#ifdef VERSION_OLD
-		pChannelInterface->m_Channel.fd = accept(pInterface->m_Channel.fd, (sockaddr*)&pChannelInterface->m_Channel.address, &len);
-#else
+#ifdef __USE_GNU
 		pChannelInterface->m_Channel.fd = accept4(pInterface->m_Channel.fd, (sockaddr*)&pChannelInterface->m_Channel.address, &len, SOCK_NONBLOCK|SOCK_CLOEXEC);
+#else
+		pChannelInterface->m_Channel.fd = accept(pInterface->m_Channel.fd, (sockaddr*)&pChannelInterface->m_Channel.address, &len);
 #endif
+		if(pChannelInterface->m_Channel.fd == -1)
+		{
+			delete pChannelInterface;
+			throw InternalException((boost::format("[%s:%d][error] accept fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
+		}
 
 		pChannelInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
 		pChannelInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);
 
-		m_pScheduler->Register(pChannelInterface, EventScheduler::PollType::POLLIN);
+		if(m_pScheduler->Register(pChannelInterface, EventScheduler::PollType::POLLIN) == -1)
+		{
+			shutdown(pChannelInterface->m_Channel.fd, SHUT_RDWR);
+			close(pChannelInterface->m_Channel.fd);
+			delete pChannelInterface;
+			throw InternalException((boost::format("[%s:%d][error] epoll_ctl add new sockfd fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
+		}
 
-		LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] connected process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+		LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] connected process.") %
+								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
+								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+
 		m_OnConnectedCallback(pChannelInterface->m_Channel);
-		LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] connected process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+
+		LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] connected process.") %
+								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
+								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+
 	}
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
@@ -92,9 +114,15 @@ public:
 
 		if(in.GetReadSize() == 0)
 		{
-			LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] disconnected process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+			LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] disconnected process.") %
+									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
+									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+
 			m_OnDisconnectedCallback(pInterface->m_Channel);
-			LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] disconnected process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+
+			LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] disconnected process.") %
+									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
+									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 
 			m_pScheduler->UnRegister(pInterface);
 			shutdown(pInterface->m_Channel.fd, SHUT_RDWR);
@@ -103,9 +131,15 @@ public:
 		}
 		else
 		{
-			LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] message process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+			LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] message process.") % 
+									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
+									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+
 			m_OnMessageCallback(pInterface->m_Channel, in);
-			LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] message process.") % inet_ntoa(pInterface->m_Channel.address.sin_addr) % ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+
+			LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] message process.") %
+									inet_ntoa(pInterface->m_Channel.address.sin_addr) % 
+									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 		}
 	}
 

@@ -8,12 +8,14 @@
 #ifndef __IOBUFFER_HPP__
 #define __IOBUFFER_HPP__
 
-#include <boost/noncopyable.hpp>
 #include <utility>
 #include <vector>
 #include <string>
 #include <exception>
+#include <boost/noncopyable.hpp>
+#include <boost/format.hpp>
 #include "Channel.hpp"
+#include "Server.hpp"
 
 #ifndef ntohll
 	#define ntohll(val)	\
@@ -29,6 +31,27 @@
 	#define IOBUFFER_DEFAULT_SIZE		65535
 #endif
 
+class IOException :
+	public std::exception
+{
+public:
+	IOException(const char* errorMessage);
+	virtual ~IOException() throw();
+	virtual const char* what() const throw();
+
+protected:
+	std::string m_ErrorMessage;
+};
+
+class OverflowIOException :
+	public IOException
+{
+public:
+	OverflowIOException(const char* errorMessage);
+	virtual ~OverflowIOException() throw();
+	virtual const char* what() const throw();
+};
+
 template<size_t IOBufferSize>
 class IOBuffer :
 	public boost::noncopyable
@@ -41,12 +64,32 @@ public:
 	{
 	}
 
+	ssize_t Write(char* buffer, size_t size)
+	{
+		if(m_WritePosition + size > IOBufferSize)
+			return 0;
+
+		memcpy(m_Buffer + m_WritePosition, buffer, size);
+		m_WritePosition += size;
+		return size;
+	}
+
 	ssize_t Write(char* buffer, size_t size, size_t pos)
 	{
 		if(pos + size > IOBufferSize)
 			return 0;
 
 		memcpy(m_Buffer + pos, buffer, size);
+		return size;
+	}
+
+	ssize_t Read(char* buffer, size_t size)
+	{
+		if(m_ReadPosition + size > m_AvailableReadSize)
+			return 0;
+
+		memcpy(buffer, m_Buffer + m_ReadPosition, size);
+		m_ReadPosition += size;
 		return size;
 	}
 
@@ -79,7 +122,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator >> (IOBuffer<IOBufferSize>& io, char& val)
 {
 	if(io.m_ReadPosition + sizeof(char) > io.m_AvailableReadSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	val = io.m_Buffer[io.m_ReadPosition];
 	++io.m_ReadPosition;
@@ -90,7 +133,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator >> (IOBuffer<IOBufferSize>& io, unsigned char& val)
 {
 	if(io.m_ReadPosition + sizeof(unsigned char) > io.m_AvailableReadSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	val = (unsigned char)io.m_Buffer[io.m_ReadPosition];
 	++io.m_ReadPosition;
@@ -101,7 +144,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator >> (IOBuffer<IOBufferSize>& io, int16_t& val)
 {
 	if(io.m_ReadPosition + sizeof(int16_t) > io.m_AvailableReadSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	val = *((int16_t*)(io.m_Buffer + io.m_ReadPosition));
 	val = ntohs(val);
@@ -113,7 +156,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator >> (IOBuffer<IOBufferSize>& io, uint16_t& val)
 {
 	if(io.m_ReadPosition + sizeof(uint16_t) > io.m_AvailableReadSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	val = *((uint16_t*)(io.m_Buffer + io.m_ReadPosition));
 	val = ntohs(val);
@@ -125,7 +168,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator >> (IOBuffer<IOBufferSize>& io, int32_t& val)
 {
 	if(io.m_ReadPosition + sizeof(int32_t) > io.m_AvailableReadSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	val = *((int32_t*)(io.m_Buffer + io.m_ReadPosition));
 	val = ntohl(val);
@@ -137,7 +180,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator >> (IOBuffer<IOBufferSize>& io, uint32_t& val)
 {
 	if(io.m_ReadPosition + sizeof(uint32_t) > io.m_AvailableReadSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	val = *((uint32_t*)(io.m_Buffer + io.m_ReadPosition));
 	val = ntohl(val);
@@ -149,7 +192,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator >> (IOBuffer<IOBufferSize>& io, int64_t& val)
 {
 	if(io.m_ReadPosition + sizeof(int64_t) > io.m_AvailableReadSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	val = *((int64_t*)(io.m_Buffer + io.m_ReadPosition));
 	val = ntohll(val);
@@ -161,7 +204,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator >> (IOBuffer<IOBufferSize>& io, uint64_t& val)
 {
 	if(io.m_ReadPosition + sizeof(uint64_t) > io.m_AvailableReadSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	val = *((uint64_t*)(io.m_Buffer + io.m_ReadPosition));
 	val = ntohll(val);
@@ -173,13 +216,13 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator >> (IOBuffer<IOBufferSize>& io, std::string& val)
 {
 	if(io.m_ReadPosition + sizeof(uint16_t) > io.m_AvailableReadSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	uint16_t len = *((uint16_t*)(io.m_Buffer + io.m_ReadPosition));
 	len = ntohs(len);
 
 	if(io.m_ReadPosition + sizeof(uint16_t) + len > io.m_AvailableReadSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	io.m_ReadPosition += sizeof(uint16_t);
 
@@ -196,7 +239,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator << (IOBuffer<IOBufferSize>& io, char val)
 {
 	if(io.m_WritePosition + sizeof(char) > IOBufferSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to write.") % __FILE__ % __LINE__).str().c_str());
 
 	io.m_Buffer[io.m_WritePosition] = val;
 	++io.m_WritePosition;
@@ -207,7 +250,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator << (IOBuffer<IOBufferSize>& io, unsigned char val)
 {
 	if(io.m_WritePosition + sizeof(char) > IOBufferSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to write.") % __FILE__ % __LINE__).str().c_str());
 
 	io.m_Buffer[io.m_WritePosition] = (char)val;
 	++io.m_WritePosition;
@@ -218,7 +261,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator << (IOBuffer<IOBufferSize>& io, int16_t val)
 {
 	if(io.m_WritePosition + sizeof(int16_t) > IOBufferSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to write.") % __FILE__ % __LINE__).str().c_str());
 
 	val = htons(val);
 	*((int16_t*)(io.m_Buffer + io.m_WritePosition)) = val;
@@ -230,7 +273,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator << (IOBuffer<IOBufferSize>& io, uint16_t val)
 {
 	if(io.m_WritePosition + sizeof(uint16_t) > IOBufferSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to write.") % __FILE__ % __LINE__).str().c_str());
 
 	val = htons(val);
 	*((uint16_t*)(io.m_Buffer + io.m_WritePosition)) = val;
@@ -242,7 +285,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator << (IOBuffer<IOBufferSize>& io, int32_t val)
 {
 	if(io.m_WritePosition + sizeof(int32_t) > IOBufferSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to write.") % __FILE__ % __LINE__).str().c_str());
 
 	val = htonl(val);
 	*((int32_t*)(io.m_Buffer + io.m_WritePosition)) = val;
@@ -254,7 +297,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator << (IOBuffer<IOBufferSize>& io, uint32_t val)
 {
 	if(io.m_WritePosition + sizeof(uint32_t) > IOBufferSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to write.") % __FILE__ % __LINE__).str().c_str());
 
 	val = htonl(val);
 	*((uint32_t*)(io.m_Buffer + io.m_WritePosition)) = val;
@@ -266,7 +309,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator << (IOBuffer<IOBufferSize>& io, int64_t val)
 {
 	if(io.m_WritePosition + sizeof(int64_t) > IOBufferSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to write.") % __FILE__ % __LINE__).str().c_str());
 
 	val = htonll(val);
 	*((int64_t*)(io.m_Buffer + io.m_WritePosition)) = val;
@@ -278,7 +321,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator << (IOBuffer<IOBufferSize>& io, uint64_t val)
 {
 	if(io.m_WritePosition + sizeof(uint64_t) > IOBufferSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to write.") % __FILE__ % __LINE__).str().c_str());
 
 	val = htonll(val);
 	*((uint64_t*)(io.m_Buffer + io.m_WritePosition)) = val;
@@ -290,7 +333,7 @@ template<size_t IOBufferSize>
 IOBuffer<IOBufferSize>& operator << (IOBuffer<IOBufferSize>& io, std::string val)
 {
 	if(io.m_WritePosition + sizeof(uint16_t) + val.length() > IOBufferSize)
-		return io;
+		throw OverflowIOException((boost::format("[%s:%d][error] no space to write.") % __FILE__ % __LINE__).str().c_str());
 
 	uint16_t len = htons(val.length());
 	*((uint16_t*)(io.m_Buffer + io.m_WritePosition)) = len;
@@ -318,7 +361,7 @@ Channel<ChannelDataT>& operator >> (Channel<ChannelDataT>& channel, IOBuffer<IOB
 
 	ssize_t recvSize = recvmsg(channel.fd, &msg, 0);
 	if(recvSize == -1)
-		return channel;
+		throw InternalException((boost::format("[%s:%d][error] recvmsg fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
 
 	io.m_AvailableReadSize = recvSize;
 	io.m_ReadPosition = 0;
@@ -352,7 +395,7 @@ Channel<ChannelDataT>& operator << (Channel<ChannelDataT>& channel, IOBuffer<IOB
 
 	ssize_t sendSize = sendmsg(channel.fd, &msg, 0);
 	if(sendSize == -1)
-		return channel;
+		throw InternalException((boost::format("[%s:%d][error] sendmsg fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
 
 	io.m_WritePosition = 0;
 	return channel;

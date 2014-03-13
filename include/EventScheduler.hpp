@@ -8,6 +8,9 @@
 #ifndef __EVENTSCHEDULER_HPP__
 #define __EVENTSCHEDULER_HPP__
 
+#include <utility>
+#include <string>
+#include <exception>
 #include <boost/noncopyable.hpp>
 #include "EPoll.hpp"
 #include "Server.hpp"
@@ -25,15 +28,15 @@ public:
 	}
 
 	template<typename DataT>
-	void UnRegister(ServerInterface<DataT>* pInterface)
+	int UnRegister(ServerInterface<DataT>* pInterface)
 	{
-		m_Poll.EventCtl(PollT::DEL, 0, pInterface->m_Channel.fd, NULL);
+		return m_Poll.EventCtl(PollT::DEL, 0, pInterface->m_Channel.fd, NULL);
 	}
 
 	template<typename DataT>
-	void Register(ServerInterface<DataT>* pInterface, int events)
+	int Register(ServerInterface<DataT>* pInterface, int events)
 	{
-		m_Poll.EventCtl(PollT::ADD, events, pInterface->m_Channel.fd, pInterface);
+		return m_Poll.EventCtl(PollT::ADD, events, pInterface->m_Channel.fd, pInterface);
 	}
 
 	void Dispatch()
@@ -44,10 +47,17 @@ public:
 			uint32_t events;
 			if(m_Poll.WaitEvent(&pInterface, &events, -1) > 0)
 			{
-				if((events & PollT::POLLIN) == PollT::POLLIN)
-					pInterface->OnReadable();
-				else if((events & PollT::POLLOUT) == PollT::POLLOUT)
-					pInterface->OnWriteable();
+				try
+				{
+					if((events & PollT::POLLIN) == PollT::POLLIN)
+						pInterface->OnReadable();
+					else if((events & PollT::POLLOUT) == PollT::POLLOUT)
+						pInterface->OnWriteable();
+				}
+				catch(std::exception& error)
+				{
+					printf("%s\n", error.what());
+				}
 			}
 		}
 	}

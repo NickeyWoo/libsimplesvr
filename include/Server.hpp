@@ -13,8 +13,23 @@
 #include <arpa/inet.h>
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
+#include <string>
+#include <exception>
 #include "Clock.hpp"
 #include "Channel.hpp"
+
+class InternalException :
+	public std::exception
+{
+public:
+	InternalException(const char* errorMessage);
+	virtual ~InternalException() throw();
+	virtual const char* what() const throw();
+
+private:
+	std::string m_ErrorMessage;
+};
+
 
 template<typename ChannelDataT>
 class ServerInterface
