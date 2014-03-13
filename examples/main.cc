@@ -26,84 +26,49 @@
 #include "Configure.hpp"
 #include "Application.hpp"
 
-struct Member {
-	uint32_t	Uin;
-	char		Name[16];
-	time_t		RegisterTime;
+struct TweetADS {
+	uint64_t	tweetid;
+	uint16_t	adnum;
+	uint64_t	adbuffer[10];
 } __attribute__((packed));
 
-HashTable<uint32_t, Member> g_HashTable;
+TimerHashTable<uint64_t, TweetADS> g_HashTable;
 
-struct ServerStatus
-{
-	int status;
+struct Request {
+	uint64_t tweetid;
 };
 
-class echod :
-	public TcpServer<echod, ServerStatus>
-{
-public:
-	void OnConnected(ChannelType& channel)
-	{
-		channel.data.status = 0;
-		
-		printf("[%s:%d status:%d] connected.\n", inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port), channel.data.status);
-	}
-
-	void OnDisconnected(ChannelType& channel)
-	{
-		printf("[%s:%d status:%d] disconnected.\n", inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port), channel.data.status);
-
-		channel.data.status = 0;
-	}
-
-	void OnMessage(ChannelType& channel, IOBufferType& buffer)
-	{
-		++channel.data.status;
-
-		printf("[%s:%d status:%d] say:\n", inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port), channel.data.status);
-	}
-
-} g_echod;
-
-struct GetMemberRequest {
-	uint16_t wLen;
-	uint32_t Uin[50];
-};
-
-class discardd :
-	public UdpServer<discardd>
+class tweetadsd :
+	public UdpServer<tweetadsd>
 {
 public:
 	void OnMessage(ChannelType& channel, IOBufferType& in)
 	{
 		IOBufferType out;
 
-		GetMemberRequest request;
-		bzero(&request, sizeof(GetMemberRequest));
+		Request request;
+		bzero(&request, sizeof(Request));
 
-		in >> request.wLen;
-		out << request.wLen;
+		in >> request.tweetid;
+		out << request.tweetid;
 
-		uint16_t i = 0;
-		for(; i < request.wLen; ++i)
+		TweetADS* pValue = g_HashTable.Hash(request.tweetid);
+		if(!pValue)
 		{
-			in >> request.Uin[i];
-
-			Member* pValue = g_HashTable.Hash(request.Uin[i]);
-			if(!pValue)
-				continue;
-
-			out << pValue->Uin;
-			out << std::string(pValue->Name);
-			out << pValue->RegisterTime;
+			uint16_t num = 0;
+			out << num;
 		}
-		out.Write((char*)&i, sizeof(uint16_t), 0);
-		
+		else
+		{
+			out << pValue->adnum;
+			for(uint16_t i=0; i<pValue->adnum; ++i)
+				out << pValue->adbuffer[i];
+		}
+
 		channel << out;
 	}
 
-} g_discardd;
+};
 
 class MyApp :
 	public Application<MyApp>
@@ -112,48 +77,50 @@ public:
 	void InitializeData()
 	{
 		printf("initialize data ...\n");
-		uint32_t i = 0;
+		uint64_t i = 0;
 		for(; i < 1000000; ++i)
 		{
-			Member* pMember = g_HashTable.Hash(i, true);
-			if(!pMember)
+			TweetADS* pValue = g_HashTable.Hash(i, true);
+			if(!pValue)
 				break;
 
-			pMember->Uin = i;
-			strcpy(pMember->Name, (boost::format("%08u") % i).str().c_str());
-			pMember->RegisterTime = time(NULL);
+			pValue->tweetid = i;
+			pValue->adnum = random() % 10;
+			for(uint16_t i = 0; i < pValue->adnum; ++i)
+				pValue->adbuffer[i] = random();
 		}
-		printf("initialize data complete(%u).\n", i);
+		printf("initialize data complete(%lu).\n", i);
 	}
 
 	bool Initialize(int argc, char* argv[])
 	{
-		if(!Register(g_echod, "echod_interface") ||
-			!Register(g_discardd, "discardd_interface"))
+		if(!Register(m_tweetadsd, "tweetadsd_interface"))
 		{
 			printf("error: register server fail.\n");
 			return false;
 		}
 	
 		// other initialize
-		
 		std::map<std::string, std::string> stStorageConfig = Configure::Get("storage");
 		Seed seed(atoi(stStorageConfig["seed"].c_str()), atoi(stStorageConfig["count"].c_str()));
 
 		SharedMemoryStorage sms;
 		if(SharedMemoryStorage::OpenStorage(&sms, 
 						strtoul(stStorageConfig["shmkey"].c_str(), NULL, 16),
-						HashTable<uint32_t, Member>::GetBufferSize(seed)) < 0)
+						TimerHashTable<uint64_t, TweetADS>::GetBufferSize(seed)) < 0)
 		{
 			printf("error: open hashtable storage fail.\n");
 			return false;
 		}
 
-		g_HashTable = HashTable<uint32_t, Member>::LoadHashTable(sms, seed);
+		g_HashTable = TimerHashTable<uint64_t, TweetADS>::LoadHashTable(sms, seed);
+		g_HashTable.SetDefaultTimeout((time_t)strtoul(stStorageConfig["timeout"].c_str(), NULL, 10));
 
 		InitializeData();
 		return true;
 	}
+
+	tweetadsd m_tweetadsd;
 };
 
 AppRun(MyApp);
