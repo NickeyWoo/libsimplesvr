@@ -6,8 +6,8 @@
 
 include ../Makefile.env
 
-TARGET := ../bin/server_example ../bin/client_example
-OBJS := objs/my.pb.o
+TARGET := ../bin/tweetadsd 
+OBJS := 
 
 all: $(TARGET)
 
@@ -15,11 +15,9 @@ clean:
 	rm -rf objs/*.o
 	rm -rf $(TARGET)
 
-../bin/server_example: objs/main.o $(OBJS) ../libs/libsimplesvr.a
+../bin/tweetadsd: objs/tweetadsd.o $(OBJS) ../libs/libsimplesvr.a
 	$(CXX) $^ -o $@ $(LIBS)
 
-../bin/client_example: objs/client.o $(OBJS)
-	$(CXX) $^ -o $@ $(LIBS)
 
 
 
