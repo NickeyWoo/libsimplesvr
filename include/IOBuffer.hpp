@@ -74,7 +74,7 @@ public:
 		return size;
 	}
 
-	ssize_t Write(const char* buffer, size_t size, size_t pos) const
+	ssize_t Write(const char* buffer, size_t size, size_t pos)
 	{
 		if(pos + size > IOBufferSize)
 			return 0;
