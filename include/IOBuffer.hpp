@@ -64,7 +64,7 @@ public:
 	{
 	}
 
-	ssize_t Write(char* buffer, size_t size)
+	ssize_t Write(const char* buffer, size_t size)
 	{
 		if(m_WritePosition + size > IOBufferSize)
 			return 0;
@@ -74,7 +74,7 @@ public:
 		return size;
 	}
 
-	ssize_t Write(char* buffer, size_t size, size_t pos)
+	ssize_t Write(const char* buffer, size_t size, size_t pos) const
 	{
 		if(pos + size > IOBufferSize)
 			return 0;
@@ -93,7 +93,7 @@ public:
 		return size;
 	}
 
-	ssize_t Read(char* buffer, size_t size, size_t pos)
+	ssize_t Read(char* buffer, size_t size, size_t pos) const
 	{
 		if(pos + size > m_AvailableReadSize)
 			return 0;
