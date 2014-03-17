@@ -8,12 +8,17 @@
 #ifndef __APPLICATION_HPP__
 #define __APPLICATION_HPP__
 
+#include <signal.h>
+#include <utility>
+#include <string>
+#include <vector>
 #include <boost/noncopyable.hpp>
 #include "EventScheduler.hpp"
 #include "Configure.hpp"
 #include "Server.hpp"
 #include "UdpServer.hpp"
 #include "TcpServer.hpp"
+#include "TcpClient.hpp"
 
 template<typename ApplicationImplT>
 class Application :
@@ -26,11 +31,9 @@ public:
 		return instance;
 	}
 
-	template<typename ServerT>
-	bool Register(ServerT& svr, const char* szConfigName)
+	template<typename ServerImplT>
+	bool RegisterServer(ServerImplT& server, const char* szConfigName)
 	{
-		LDEBUG_CLOCK_TRACE((boost::format("register server [%s]") % szConfigName).str().c_str());
-
 		std::map<std::string, std::string> stServerInterface = Configure::Get(szConfigName);
 
 		sockaddr_in addr;
@@ -39,7 +42,36 @@ public:
 		addr.sin_port = htons(atoi(stServerInterface["port"].c_str()));
 		addr.sin_addr.s_addr = inet_addr(stServerInterface["ip"].c_str());
 
-		return (ServerT::Listen(svr, &m_Scheduler, addr) == 0);
+		if(server.Listen(addr) != 0)
+			return false;
+
+		EventScheduler& scheduler = EventScheduler::Instance();
+		return (scheduler.Register(&server, EventScheduler::PollType::POLLIN) == 0);
+	}
+
+	template<typename ClientImplT>
+	bool RegisterClient(ClientImplT& client, const char* szConfigName)
+	{
+		std::map<std::string, std::string> stClientInterface = Configure::Get(szConfigName);
+
+		sockaddr_in addr;
+		bzero(&addr, sizeof(sockaddr_in));
+		addr.sin_family = PF_INET;
+		addr.sin_port = htons(atoi(stClientInterface["port"].c_str()));
+		addr.sin_addr.s_addr = inet_addr(stClientInterface["ip"].c_str());
+
+		if(client.Connect(addr) != 0)
+			return false;
+
+		EventScheduler& scheduler = EventScheduler::Instance();
+		return (scheduler.Register(&client, EventScheduler::PollType::POLLOUT) == 0);
+	}
+
+	void Run()
+	{
+		LDEBUG_CLOCK_TRACE("start event dispatch loop...");
+		EventScheduler& scheduler = EventScheduler::Instance();
+		scheduler.Startup();
 	}
 
 	std::string GetName()
@@ -70,28 +102,29 @@ public:
 
 	bool CreatePidFile(const char* szPidFile)
 	{
-		m_pid = open(szPidFile, O_RDWR|O_CREAT, 0640);
-		if(m_pid == -1)
+		m_lock = open(szPidFile, O_RDWR|O_CREAT, 0640);
+		if(m_lock == -1)
 			return false;
 
 		struct flock stLock;
 		bzero(&stLock, sizeof(struct flock));
 		stLock.l_type = F_WRLCK;
 
-		if(fcntl(m_pid, F_SETLK, &stLock) == -1)
+		if(fcntl(m_lock, F_SETLK, &stLock) == -1)
 			return false;
 		return true;
 	}
 
-	void Run()
+protected:
+	Application() :
+		m_pid(getpid()),
+		m_lock(-1)
 	{
-		LDEBUG_CLOCK_TRACE("start event dispatch loop...");
-		m_Scheduler.Dispatch();
+		signal(SIGCHLD, SIG_IGN);
 	}
 
-protected:
-	int	m_pid;
-	EventScheduler m_Scheduler;
+	int			m_pid;
+	int			m_lock;
 };
 
 #define AppRun(app)																			\
@@ -127,9 +160,9 @@ protected:
 			printf("[%s] startup ...\n", instance.GetName().c_str());						\
 			instance.Run();																	\
 		}																					\
+																							\
 		return 0;																			\
 	}
-
 
 
 #endif // define __APPLICATION_HPP__

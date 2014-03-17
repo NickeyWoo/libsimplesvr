@@ -51,5 +51,6 @@ public:
 	Channel<ChannelDataT> m_Channel;
 };
 
+int SetNonblockAndCloexecFd(int fd);
 
 #endif // define __SERVER_HPP__

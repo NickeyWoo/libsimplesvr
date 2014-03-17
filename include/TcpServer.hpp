@@ -12,7 +12,6 @@
 #include <boost/bind.hpp>
 #include "IOBuffer.hpp"
 #include "Server.hpp"
-#include "EventScheduler.hpp"
 
 #define DEFAULT_SOCK_BACKLOG	100
 
@@ -23,48 +22,44 @@ public:
 	typedef Channel<ChannelDataT> ChannelType;
 	typedef IOBuffer<IOBufferSize> IOBufferType;
 
-	static int Listen(ServerImplT& svr, EventScheduler* pScheduler, sockaddr_in& addr)
+	int Listen(sockaddr_in& addr)
 	{
-		svr.m_OnConnectedCallback = boost::bind(&ServerImplT::OnConnected, &svr, _1);
-		svr.m_OnDisconnectedCallback = boost::bind(&ServerImplT::OnDisconnected, &svr, _1);
-		svr.m_OnMessageCallback = boost::bind(&ServerImplT::OnMessage, &svr, _1, _2);
-
-		ServerInterface<ChannelDataT>* pInterface = &svr.m_ServerInterface;
 #ifdef __USE_GNU
-		pInterface->m_Channel.fd = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
-#else
-		pInterface->m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
-#endif
-		if(pInterface->m_Channel.fd == -1)
+		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+		if(m_ServerInterface.m_Channel.fd == -1)
 			return -1;
+#else
+		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
+		if(m_ServerInterface.m_Channel.fd == -1)
+			return -1;
+
+		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.fd) < 0)
+		{
+			close(m_ServerInterface.m_Channel.fd);
+			return -1;
+		}
+#endif
 
 		int reuse = 1;
-		if(-1 == setsockopt(pInterface->m_Channel.fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)))
+		if(-1 == setsockopt(m_ServerInterface.m_Channel.fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)))
 		{
-			close(pInterface->m_Channel.fd);
+			close(m_ServerInterface.m_Channel.fd);
 			return -1;
 		}
 
-		if(-1 == bind(pInterface->m_Channel.fd, (sockaddr*)&addr, sizeof(sockaddr_in)))
+		if(-1 == bind(m_ServerInterface.m_Channel.fd, (sockaddr*)&addr, sizeof(sockaddr_in)))
 		{
-			close(pInterface->m_Channel.fd);
+			close(m_ServerInterface.m_Channel.fd);
 			return -1;
 		}
 
-		if(-1 == listen(pInterface->m_Channel.fd, DEFAULT_SOCK_BACKLOG))
+		if(-1 == listen(m_ServerInterface.m_Channel.fd, DEFAULT_SOCK_BACKLOG))
 		{
-			close(pInterface->m_Channel.fd);
+			close(m_ServerInterface.m_Channel.fd);
 			return -1;
 		}
 
-		pInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnAcceptable, &svr, _1);
-		
-		svr.m_pScheduler = pScheduler;
-		if(svr.m_pScheduler->Register(pInterface, EventScheduler::PollType::POLLIN) == -1)
-		{
-			close(pInterface->m_Channel.fd);
-			return -1;
-		}
+		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnAcceptable, this, _1);
 		return 0;
 	}
 
@@ -75,19 +70,33 @@ public:
 		ServerInterface<ChannelDataT>* pChannelInterface = new ServerInterface<ChannelDataT>();
 #ifdef __USE_GNU
 		pChannelInterface->m_Channel.fd = accept4(pInterface->m_Channel.fd, (sockaddr*)&pChannelInterface->m_Channel.address, &len, SOCK_NONBLOCK|SOCK_CLOEXEC);
+		if(pChannelInterface->m_Channel.fd == -1)
+		{
+			delete pChannelInterface;
+			throw InternalException((boost::format("[%s:%d][error] accept fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
+		}
+		printf("pid_t:%d, fd:%d\n", getpid(), pChannelInterface->m_Channel.fd);
 #else
 		pChannelInterface->m_Channel.fd = accept(pInterface->m_Channel.fd, (sockaddr*)&pChannelInterface->m_Channel.address, &len);
-#endif
 		if(pChannelInterface->m_Channel.fd == -1)
 		{
 			delete pChannelInterface;
 			throw InternalException((boost::format("[%s:%d][error] accept fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
 		}
 
+		if(SetNonblockAndCloexecFd(pChannelInterface->m_Channel.fd) < 0)
+		{
+			close(pChannelInterface->m_Channel.fd);
+			delete pChannelInterface;
+			throw InternalException((boost::format("[%s:%d][error] SetNonblockAndCloexecFd fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
+		}
+#endif
+
 		pChannelInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
 		pChannelInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);
 
-		if(m_pScheduler->Register(pChannelInterface, EventScheduler::PollType::POLLIN) == -1)
+		EventScheduler& scheduler = EventScheduler::Instance();
+		if(scheduler.Register(pChannelInterface, EventScheduler::PollType::POLLIN) == -1)
 		{
 			shutdown(pChannelInterface->m_Channel.fd, SHUT_RDWR);
 			close(pChannelInterface->m_Channel.fd);
@@ -99,7 +108,7 @@ public:
 								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
 								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 
-		m_OnConnectedCallback(pChannelInterface->m_Channel);
+		this->OnConnected(pChannelInterface->m_Channel);
 
 		LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] connected process.") %
 								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
@@ -118,13 +127,14 @@ public:
 									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
 									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 
-			m_OnDisconnectedCallback(pInterface->m_Channel);
+			this->OnDisconnected(pInterface->m_Channel);
 
 			LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] disconnected process.") %
 									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
 									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 
-			m_pScheduler->UnRegister(pInterface);
+			EventScheduler& scheduler = EventScheduler::Instance();
+			scheduler.UnRegister(pInterface);
 			shutdown(pInterface->m_Channel.fd, SHUT_RDWR);
 			close(pInterface->m_Channel.fd);
 			delete pInterface;
@@ -135,7 +145,7 @@ public:
 									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
 									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 
-			m_OnMessageCallback(pInterface->m_Channel, in);
+			this->OnMessage(pInterface->m_Channel, in);
 
 			LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] message process.") %
 									inet_ntoa(pInterface->m_Channel.address.sin_addr) % 
@@ -147,12 +157,20 @@ public:
 	{
 	}
 
-	boost::function<void(ChannelType&)> m_OnConnectedCallback;
-	boost::function<void(ChannelType&)> m_OnDisconnectedCallback;
-	boost::function<void(ChannelType&, IOBufferType&)> m_OnMessageCallback;
+	// udp server interface
+	virtual void OnConnected(ChannelType& channel)
+	{
+	}
+
+	virtual void OnDisconnected(ChannelType& channel)
+	{
+	}
+
+	virtual void OnMessage(ChannelType& channel, IOBufferType& in)
+	{
+	}
 
 	ServerInterface<ChannelDataT> m_ServerInterface;
-	EventScheduler* m_pScheduler;
 };
 
 #endif // define __TCPSERVER_HPP__

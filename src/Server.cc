@@ -28,4 +28,22 @@ const char* InternalException::what() const throw()
 	return m_ErrorMessage.c_str();
 }
 
+int SetNonblockAndCloexecFd(int fd)
+{
+	int sf = fcntl(fd, F_GETFL, 0);
+	if(sf == -1)
+		return -1;
+
+	if(-1 == fcntl(fd, F_SETFL, sf | O_NONBLOCK))
+		return -1;
+
+	int df = fcntl(fd, F_GETFD, 0);
+	if(df == -1)
+		return -1;
+
+	if(-1 == fcntl(fd, F_SETFD, df | FD_CLOEXEC))
+		return -1;
+
+	return 0;
+}
 

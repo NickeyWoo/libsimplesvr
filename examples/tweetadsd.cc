@@ -67,7 +67,6 @@ public:
 
 		channel << out;
 	}
-
 };
 
 class MyApp :
@@ -94,12 +93,9 @@ public:
 
 	bool Initialize(int argc, char* argv[])
 	{
-		if(!Register(m_tweetadsd, "tweetadsd_interface"))
-		{
-			printf("error: register server fail.\n");
+		if(!RegisterServer(m_tweetadsd, "server_interface"))
 			return false;
-		}
-	
+
 		// other initialize
 		std::map<std::string, std::string> stStorageConfig = Configure::Get("storage");
 		Seed seed(atoi(stStorageConfig["seed"].c_str()), atoi(stStorageConfig["count"].c_str()));

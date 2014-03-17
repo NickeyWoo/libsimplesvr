@@ -14,19 +14,26 @@
 #include <netinet/in.h>
 #include "EPoll.hpp"
 
-#ifdef __USE_GNU
 EPoll::EPoll() :
-	m_epfd(epoll_create(1000))
+	m_epfd(-1)
 {
 }
-#else
-EPoll::EPoll() :
-	m_epfd(epoll_create1(EPOLL_CLOEXEC))
-{
-}
-#endif
 
 EPoll::~EPoll()
+{
+}
+
+int EPoll::Create()
+{
+#ifdef __USE_GNU
+	m_epfd = epoll_create1(EPOLL_CLOEXEC);
+#else
+	m_epfd = epoll_create(1000);
+#endif
+	return m_epfd;
+}
+
+void EPoll::Close()
 {
 	close(m_epfd);
 }
