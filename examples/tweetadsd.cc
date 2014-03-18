@@ -39,7 +39,7 @@ struct Request {
 };
 
 class tweetadsd :
-	public UdpServer<tweetadsd>
+	public TcpServer<tweetadsd>
 {
 public:
 	void OnMessage(ChannelType& channel, IOBufferType& in)

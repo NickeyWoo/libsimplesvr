@@ -65,32 +65,36 @@ public:
 
 	void OnAcceptable(ServerInterface<ChannelDataT>* pInterface)
 	{
+		sockaddr_in cliAddr;
+		bzero(&cliAddr, sizeof(sockaddr_in));
 		socklen_t len = sizeof(sockaddr_in);
 
-		ServerInterface<ChannelDataT>* pChannelInterface = new ServerInterface<ChannelDataT>();
 #ifdef __USE_GNU
-		pChannelInterface->m_Channel.fd = accept4(pInterface->m_Channel.fd, (sockaddr*)&pChannelInterface->m_Channel.address, &len, SOCK_NONBLOCK|SOCK_CLOEXEC);
-		if(pChannelInterface->m_Channel.fd == -1)
+		int clifd = accept4(pInterface->m_Channel.fd, (sockaddr*)&cliAddr, &len, SOCK_NONBLOCK|SOCK_CLOEXEC);
+		if(clifd == -1)
 		{
-			delete pChannelInterface;
+			if(errno == EAGAIN || errno == EWOULDBLOCK)
+				return;
 			throw InternalException((boost::format("[%s:%d][error] accept fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
 		}
-		printf("pid_t:%d, fd:%d\n", getpid(), pChannelInterface->m_Channel.fd);
 #else
-		pChannelInterface->m_Channel.fd = accept(pInterface->m_Channel.fd, (sockaddr*)&pChannelInterface->m_Channel.address, &len);
-		if(pChannelInterface->m_Channel.fd == -1)
+		int clifd = accept(pInterface->m_Channel.fd, (sockaddr*)&cliAddr, &len);
+		if(clifd == -1)
 		{
-			delete pChannelInterface;
+			if(errno == EAGAIN || errno == EWOULDBLOCK)
+				return;
 			throw InternalException((boost::format("[%s:%d][error] accept fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
 		}
 
-		if(SetNonblockAndCloexecFd(pChannelInterface->m_Channel.fd) < 0)
+		if(SetNonblockAndCloexecFd(clifd) < 0)
 		{
-			close(pChannelInterface->m_Channel.fd);
-			delete pChannelInterface;
+			close(clifd);
 			throw InternalException((boost::format("[%s:%d][error] SetNonblockAndCloexecFd fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
 		}
 #endif
+		ServerInterface<ChannelDataT>* pChannelInterface = new ServerInterface<ChannelDataT>();
+		pChannelInterface->m_Channel.fd = clifd;
+		memcpy(&pChannelInterface->m_Channel.address, &cliAddr, sizeof(sockaddr_in));
 
 		pChannelInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
 		pChannelInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);

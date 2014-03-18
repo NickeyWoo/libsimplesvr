@@ -31,6 +31,11 @@ public:
 		return instance;
 	}
 
+	~EventSchedulerImpl()
+	{
+		m_Poll.Close();
+	}
+
 	template<typename ServerImplT>
 	inline int UnRegister(ServerImplT* pServer)
 	{
@@ -88,7 +93,10 @@ public:
 				return -1;
 			}
 			else if(pid == 0)
+			{
+				m_SchedulerId = i;
 				break;
+			}
 		}
 
 		if(m_Poll.Create() == -1)
@@ -130,16 +138,23 @@ public:
 		}
 	}
 
+	inline uint16_t GetSchedulerId()
+	{
+		return m_SchedulerId;
+	}
+
 protected:
 
 	EventSchedulerImpl() :
 		m_Startup(false),
-		m_Quit(false)
+		m_Quit(false),
+		m_SchedulerId(0)
 	{
 	}
 
 	bool m_Startup;
 	bool m_Quit;
+	uint16_t m_SchedulerId;
 	PollT m_Poll;
 	std::vector<std::pair<ServerInterface<void>*, int> > m_vRegisterInterface;
 };
