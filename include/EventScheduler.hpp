@@ -79,7 +79,7 @@ public:
 		uint32_t concurrent = 1;
 		if(!stConcurrentConfig["concurrent"].empty())
 			concurrent = strtoul(stConcurrentConfig["concurrent"].c_str(), NULL, 10);
-		for(uint32_t i = 0; i < concurrent; ++i)
+		for(uint32_t i = 1; i < concurrent; ++i)
 		{
 			pid_t pid = fork();
 			if(pid == -1)
