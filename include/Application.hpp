@@ -69,9 +69,15 @@ public:
 
 	void Run()
 	{
-		LDEBUG_CLOCK_TRACE("start event dispatch loop...");
+		std::map<std::string, std::string> stConcurrentConfig = Configure::Get("global");
+		uint32_t concurrent = 1;
+		if(!stConcurrentConfig["concurrent"].empty())
+			concurrent = strtoul(stConcurrentConfig["concurrent"].c_str(), NULL, 10);
+
 		EventScheduler& scheduler = EventScheduler::Instance();
-		scheduler.Startup();
+
+		LDEBUG_CLOCK_TRACE("start event dispatch loop...");
+		scheduler.Startup(concurrent);
 	}
 
 	std::string GetName()

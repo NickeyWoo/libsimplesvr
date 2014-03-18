@@ -29,7 +29,7 @@ public:
 		POLLOUT = EPOLLOUT
 	};
 
-	int Create();
+	int CreatePoll();
 	void Close();
 	int EventCtl(int opeartor, uint32_t events, int fd, void* ptr);
 

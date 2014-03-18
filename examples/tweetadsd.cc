@@ -67,6 +67,17 @@ public:
 
 		channel << out;
 	}
+
+	void OnConnected(ChannelType& channel)
+	{
+		printf("[%s:%d] connected.\n", inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+	}
+
+	void OnDisconnected(ChannelType& channel)
+	{
+		printf("[%s:%d] disconnected.\n", inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+	}
+
 };
 
 class MyApp :

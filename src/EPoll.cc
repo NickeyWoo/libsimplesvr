@@ -23,7 +23,7 @@ EPoll::~EPoll()
 {
 }
 
-int EPoll::Create()
+int EPoll::CreatePoll()
 {
 #ifdef __USE_GNU
 	m_epfd = epoll_create1(EPOLL_CLOEXEC);
