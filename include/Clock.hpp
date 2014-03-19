@@ -12,32 +12,39 @@
 #include <list>
 #include <string>
 #include <time.h>
+#include <boost/noncopyable.hpp>
 
 #ifdef DEBUG
 	#define DEBUG_CLOCK_TRACE(msg)		\
-				Clock::Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
+		Pool::Instance().GetClock()->Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
 #else
 	#define DEBUG_CLOCK_TRACE(msg)
 #endif
 
 #ifdef LDEBUG
 	#define LDEBUG_CLOCK_TRACE(msg)	\
-				Clock::Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
+		Pool::Instance().GetClock()->Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
 #else
 	#define LDEBUG_CLOCK_TRACE(msg)
 #endif
 
-class Clock
+#define CLOCK_TRACE(msg)	\
+		Pool::Instance().GetClock()->Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
+#define CLOCK_CLEAR()	\
+		Pool::Instance().GetClock()->Clear()
+
+class Clock :
+	public boost::noncopyable
 {
 public:
-	static uint64_t Tick();
-	static uint64_t Tick(const char* message);
-	static void Clear();
+	uint64_t Tick();
+	uint64_t Tick(const char* message);
+	void Clear();
 
-	static void Dump();
+	void Dump();
 
 private:
-	static std::list<std::pair<std::string, timespec> > m_ClockList;
+	std::list<std::pair<std::string, timespec> > m_ClockList;
 };
 
 #endif // define __CLOCK_HPP__

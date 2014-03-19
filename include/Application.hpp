@@ -13,8 +13,8 @@
 #include <string>
 #include <vector>
 #include <boost/noncopyable.hpp>
-#include "EventScheduler.hpp"
 #include "Configure.hpp"
+#include "Pool.hpp"
 #include "Server.hpp"
 #include "UdpServer.hpp"
 #include "TcpServer.hpp"
@@ -45,8 +45,7 @@ public:
 		if(server.Listen(addr) != 0)
 			return false;
 
-		EventScheduler& scheduler = EventScheduler::Instance();
-		return (scheduler.Register(&server, EventScheduler::PollType::POLLIN) == 0);
+		return (Pool::Instance().Register(&server, Pool::PollType::POLLIN) == 0);
 	}
 
 	template<typename ClientImplT>
@@ -63,21 +62,25 @@ public:
 		if(client.Connect(addr) != 0)
 			return false;
 
-		EventScheduler& scheduler = EventScheduler::Instance();
-		return (scheduler.Register(&client, EventScheduler::PollType::POLLOUT) == 0);
+		return (Pool::Instance().Register(&client, Pool::PollType::POLLOUT) == 0);
 	}
 
 	void Run()
 	{
-		std::map<std::string, std::string> stConcurrentConfig = Configure::Get("global");
+#if defined(POOL_USE_PROCESSPOOL) || defined(POOL_USE_THREADPOOL)
 		uint32_t concurrent = 1;
-		if(!stConcurrentConfig["concurrent"].empty())
-			concurrent = strtoul(stConcurrentConfig["concurrent"].c_str(), NULL, 10);
+		std::map<std::string, std::string> stGlobalConfig = Configure::Get("global");
+		if(!stGlobalConfig["concurrent"].empty())
+			concurrent = strtoul(stGlobalConfig["concurrent"].c_str(), NULL, 10);
 
-		EventScheduler& scheduler = EventScheduler::Instance();
-
-		LDEBUG_CLOCK_TRACE("start event dispatch loop...");
-		scheduler.Startup(concurrent);
+		Pool& pool = Pool::Instance();
+		if(pool.Startup(concurrent) != 0)
+			printf("[error] startup fail, %s.\n", strerror(errno));
+#else
+		Pool& pool = Pool::Instance();
+		if(pool.Startup() != 0)
+			printf("[error] startup fail, %s.\n", strerror(errno));
+#endif
 	}
 
 	std::string GetName()
@@ -129,8 +132,8 @@ protected:
 		signal(SIGCHLD, SIG_IGN);
 	}
 
-	int			m_pid;
-	int			m_lock;
+	int				m_pid;
+	int				m_lock;
 };
 
 #define AppRun(app)																			\

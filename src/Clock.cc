@@ -16,8 +16,6 @@
 #include <time.h>
 #include "Clock.hpp"
 
-std::list<std::pair<std::string, timespec> > Clock::m_ClockList;
-
 uint64_t Clock::Tick()
 {
 	timespec ts;

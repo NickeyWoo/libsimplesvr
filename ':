@@ -47,6 +47,7 @@ public:
 			close(m_ServerInterface.m_Channel.fd);
 			return -1;
 		}
+
 		return 0;
 	}
 
@@ -62,8 +63,8 @@ public:
 		if(getpeername(pInterface->m_Channel.fd, (sockaddr*)&pInterface->m_Channel.address, &len) == -1)
 			throw InternalException((boost::format("[%s:%d][error] getpeername fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
 
-		typename Pool::SchedulerType* pScheduler = Pool::Instance().GetScheduler();
-		if(pScheduler->Update(this, Pool::PollType::POLLIN) == -1)
+		EventScheduler& scheduler = EventScheduler::Instance();
+		if(scheduler.Update(this, EventScheduler::PollType::POLLIN) == -1)
 			throw InternalException((boost::format("[%s:%d][error] epoll_ctl update sockfd fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
 
 		LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] connected process.") %
@@ -124,12 +125,6 @@ public:
 
 	virtual void OnMessage(ChannelType& channel, IOBufferType& in)
 	{
-	}
-
-	inline ssize_t Send(IOBufferType& out)
-	{
-		return send(m_ServerInterface.m_Channel.fd, 
-					out.m_Buffer, out.GetWriteSize(), 0);
 	}
 
 	ServerInterface<ChannelDataT> m_ServerInterface;

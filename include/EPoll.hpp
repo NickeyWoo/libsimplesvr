@@ -29,8 +29,6 @@ public:
 		POLLOUT = EPOLLOUT
 	};
 
-	int CreatePoll();
-	void Close();
 	int EventCtl(int opeartor, uint32_t events, int fd, void* ptr);
 
 	template<typename DataT>

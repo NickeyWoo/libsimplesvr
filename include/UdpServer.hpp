@@ -78,6 +78,13 @@ public:
 	{
 	}
 
+	inline ssize_t Send(IOBufferType& out, sockaddr_in& target)
+	{
+		return sendto(m_ServerInterface.m_Channel.fd, 
+					out.m_Buffer, out.GetWriteSize(), 0,
+					(const sockaddr*)&target, sizeof(sockaddr_in));
+	}
+
 	ServerInterface<ChannelDataT> m_ServerInterface;
 };
 

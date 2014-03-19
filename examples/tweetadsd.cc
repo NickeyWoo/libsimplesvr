@@ -18,7 +18,7 @@
 #include "storage.hpp"
 #include "hashtable.hpp"
 
-#include "EventScheduler.hpp"
+#include "Pool.hpp"
 #include "Channel.hpp"
 #include "IOBuffer.hpp"
 #include "TcpServer.hpp"
@@ -70,12 +70,12 @@ public:
 
 	void OnConnected(ChannelType& channel)
 	{
-		printf("[%s:%d] connected.\n", inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+		printf("[pool:%u][%s:%d] connected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
 
 	void OnDisconnected(ChannelType& channel)
 	{
-		printf("[%s:%d] disconnected.\n", inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+		printf("[pool:%u][%s:%d] disconnected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
 
 };
