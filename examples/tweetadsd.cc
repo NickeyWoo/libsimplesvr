@@ -39,7 +39,8 @@ struct Request {
 };
 
 class tweetadsd :
-	public TcpServer<tweetadsd>
+	public UdpServer<tweetadsd>
+//	public TcpServer<tweetadsd>
 {
 public:
 	void OnMessage(ChannelType& channel, IOBufferType& in)
@@ -67,7 +68,7 @@ public:
 
 		channel << out;
 	}
-
+/*
 	void OnConnected(ChannelType& channel)
 	{
 		printf("[pool:%u][%s:%d] connected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
@@ -77,7 +78,10 @@ public:
 	{
 		printf("[pool:%u][%s:%d] disconnected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
-
+*/
+	void OnTimeout()
+	{
+	}
 };
 
 class MyApp :

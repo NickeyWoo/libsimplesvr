@@ -15,15 +15,25 @@
 #include "EPoll.hpp"
 
 EPoll::EPoll() :
-#ifdef __USE_GNU
-	m_epfd(epoll_create1(EPOLL_CLOEXEC))
-#else
-	m_epfd(epoll_create(1000))
-#endif
+	m_epfd(-1)
 {
 }
 
 EPoll::~EPoll()
+{
+}
+
+int EPoll::CreatePoll()
+{
+#ifdef __USE_GNU
+	m_epfd = epoll_create1(EPOLL_CLOEXEC);
+#else
+	m_epfd = epoll_create(1000);
+#endif
+	return m_epfd;
+}
+
+void EPoll::Close()
 {
 	close(m_epfd);
 }

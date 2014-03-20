@@ -12,7 +12,7 @@
 #include <boost/bind.hpp>
 #include "IOBuffer.hpp"
 #include "Server.hpp"
-#include "Pool.hpp"
+#include "EventScheduler.hpp"
 
 template<typename ServerImplT, typename ChannelDataT = void, size_t IOBufferSize = IOBUFFER_DEFAULT_SIZE>
 class TcpClient
@@ -60,11 +60,11 @@ public:
 	{
 		socklen_t len = sizeof(sockaddr_in);
 		if(getpeername(pInterface->m_Channel.fd, (sockaddr*)&pInterface->m_Channel.address, &len) == -1)
-			throw InternalException((boost::format("[%s:%d][error] getpeername fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
+			throw InternalException((boost::format("[%s:%d][error] getpeername fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
 
-		typename Pool::SchedulerType* pScheduler = Pool::Instance().GetScheduler();
-		if(pScheduler->Update(this, Pool::PollType::POLLIN) == -1)
-			throw InternalException((boost::format("[%s:%d][error] epoll_ctl update sockfd fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
+		EventScheduler& scheduler = EventScheduler::Instance();
+		if(scheduler.Update(this, EventScheduler::PollType::POLLIN) == -1)
+			throw InternalException((boost::format("[%s:%d][error] epoll_ctl update sockfd fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
 
 		LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] connected process.") %
 								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
@@ -94,8 +94,8 @@ public:
 									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
 									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 
-			typename Pool::SchedulerType* pScheduler = Pool::Instance().GetScheduler();
-			pScheduler->UnRegister(this);
+			EventScheduler& scheduler = EventScheduler::Instance();
+			scheduler.UnRegister(this);
 			shutdown(pInterface->m_Channel.fd, SHUT_RDWR);
 			close(pInterface->m_Channel.fd);
 		}

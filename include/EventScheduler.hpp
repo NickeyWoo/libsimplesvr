@@ -16,14 +16,60 @@
 #include <exception>
 #include <boost/noncopyable.hpp>
 #include "EPoll.hpp"
-#include "Server.hpp"
+#include "Clock.hpp"
 
 template<typename PollT>
-class EventScheduler:
+class EventSchedulerImpl :
 	public boost::noncopyable
 {
 public:
 	typedef PollT PollType;
+
+#if defined(POOL_USE_THREADPOOL)
+
+	static pthread_once_t scheduler_once;
+	static pthread_key_t scheduler_key;
+
+	static void scheduler_free(void* buffer)
+	{
+		EventSchedulerImpl<PollT>* pScheduler = (EventSchedulerImpl<PollT>*)buffer;
+		delete pScheduler;
+	}
+
+	static void scheduler_key_init()
+	{
+		pthread_key_create(&EventSchedulerImpl<PollT>::scheduler_key, &EventSchedulerImpl<PollT>::scheduler_free);
+	}
+
+	static EventSchedulerImpl<PollT>& Instance()
+	{
+		pthread_once(&EventSchedulerImpl<PollT>::scheduler_once, &EventSchedulerImpl<PollT>::scheduler_key_init);
+		EventSchedulerImpl<PollT>* pScheduler = (EventSchedulerImpl<PollT>*)pthread_getspecific(EventSchedulerImpl<PollT>::scheduler_key);
+		if(!pScheduler)
+		{
+			pScheduler = new EventSchedulerImpl<PollT>();
+			pthread_setspecific(EventSchedulerImpl<PollT>::scheduler_key, pScheduler);
+		}
+		return *pScheduler;
+	}
+
+#else
+	static EventSchedulerImpl<PollT>& Instance()
+	{
+		static EventSchedulerImpl<PollT> instance;
+		return instance;
+	}
+#endif
+
+	inline int CreateScheduler()
+	{
+		return m_Poll.CreatePoll();
+	}
+
+	inline void Close()
+	{
+		m_Poll.Close();
+	}
 
 	template<typename ServiceT>
 	inline int UnRegister(ServiceT* pService)
@@ -85,14 +131,26 @@ public:
 		}
 	}
 
-	EventScheduler() :
+protected:
+	EventSchedulerImpl() :
 		m_Quit(false)
 	{
 	}
 
-protected:
 	bool m_Quit;
 	PollT m_Poll;
 };
+
+#if defined(POOL_USE_THREADPOOL)
+
+template<typename PollT>
+pthread_once_t EventSchedulerImpl<PollT>::scheduler_once = PTHREAD_ONCE_INIT;
+
+template<typename PollT>
+pthread_key_t EventSchedulerImpl<PollT>::scheduler_key;
+
+#endif
+
+typedef EventSchedulerImpl<EPoll> EventScheduler;
 
 #endif // define __EVENTSCHEDULER_HPP__

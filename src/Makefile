@@ -7,7 +7,7 @@
 include ../Makefile.env
 
 TARGET := ../libs/libsimplesvr.a
-OBJS := objs/EPoll.o objs/Configure.o objs/Clock.o objs/Server.o objs/IOBuffer.o
+OBJS := objs/EPoll.o objs/Configure.o objs/Clock.o objs/Server.o objs/IOBuffer.o objs/Pool.o objs/Log.o
 
 all: $(TARGET)
 

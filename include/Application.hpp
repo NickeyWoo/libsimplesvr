@@ -45,7 +45,7 @@ public:
 		if(server.Listen(addr) != 0)
 			return false;
 
-		return (Pool::Instance().Register(&server, Pool::PollType::POLLIN) == 0);
+		return (Pool::Instance().Register(&server, EventScheduler::PollType::POLLIN) == 0);
 	}
 
 	template<typename ClientImplT>
@@ -62,12 +62,11 @@ public:
 		if(client.Connect(addr) != 0)
 			return false;
 
-		return (Pool::Instance().Register(&client, Pool::PollType::POLLOUT) == 0);
+		return (Pool::Instance().Register(&client, EventScheduler::PollType::POLLOUT) == 0);
 	}
 
 	void Run()
 	{
-#if defined(POOL_USE_PROCESSPOOL) || defined(POOL_USE_THREADPOOL)
 		uint32_t concurrent = 1;
 		std::map<std::string, std::string> stGlobalConfig = Configure::Get("global");
 		if(!stGlobalConfig["concurrent"].empty())
@@ -75,12 +74,7 @@ public:
 
 		Pool& pool = Pool::Instance();
 		if(pool.Startup(concurrent) != 0)
-			printf("[error] startup fail, %s.\n", strerror(errno));
-#else
-		Pool& pool = Pool::Instance();
-		if(pool.Startup() != 0)
-			printf("[error] startup fail, %s.\n", strerror(errno));
-#endif
+			printf("[error] startup fail, %s.\n", safe_strerror(errno));
 	}
 
 	std::string GetName()

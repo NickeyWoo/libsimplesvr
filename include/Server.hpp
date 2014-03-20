@@ -15,8 +15,8 @@
 #include <boost/bind.hpp>
 #include <string>
 #include <exception>
-#include "Clock.hpp"
 #include "Channel.hpp"
+#include "Log.hpp"
 
 class InternalException :
 	public std::exception

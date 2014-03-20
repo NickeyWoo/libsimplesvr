@@ -16,6 +16,7 @@
 #include <boost/format.hpp>
 #include "Channel.hpp"
 #include "Server.hpp"
+#include "Log.hpp"
 
 #ifndef ntohll
 	#define ntohll(val)	\
@@ -361,7 +362,7 @@ Channel<ChannelDataT>& operator >> (Channel<ChannelDataT>& channel, IOBuffer<IOB
 
 	ssize_t recvSize = recvmsg(channel.fd, &msg, 0);
 	if(recvSize == -1)
-		throw InternalException((boost::format("[%s:%d][error] recvmsg fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
+		throw InternalException((boost::format("[%s:%d][error] recvmsg fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
 
 	io.m_AvailableReadSize = recvSize;
 	io.m_ReadPosition = 0;
@@ -395,7 +396,7 @@ Channel<ChannelDataT>& operator << (Channel<ChannelDataT>& channel, IOBuffer<IOB
 
 	ssize_t sendSize = sendmsg(channel.fd, &msg, 0);
 	if(sendSize == -1)
-		throw InternalException((boost::format("[%s:%d][error] sendmsg fail, %s.") % __FILE__ % __LINE__ % strerror(errno)).str().c_str());
+		throw InternalException((boost::format("[%s:%d][error] sendmsg fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
 
 	io.m_WritePosition = 0;
 	return channel;
