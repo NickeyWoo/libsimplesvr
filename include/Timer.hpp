@@ -12,13 +12,49 @@
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 #include <boost/noncopyable.hpp>
-#include "Pool.hpp"
 
 template<typename DataT, int CheckInterval>
 class Timer :
 	public boost::noncopyable
 {
 public:
+
+#if defined(POOL_USE_THREADPOOL)
+
+	static pthread_once_t timer_once;
+	static pthread_key_t timer_key;
+
+	static void timer_free(void* buffer)
+	{
+		Timer<DataT, CheckInterval>* pTimer = (Timer<DataT, CheckInterval>*)buffer;
+		delete pTimer;
+	}
+
+	static void timer_key_init()
+	{
+		pthread_key_create(&Timer<DataT, CheckInterval>::timer_key, &Timer<DataT, CheckInterval>::timer_free);
+	}
+
+	static Timer<DataT, CheckInterval>& Instance()
+	{
+		pthread_once(&Timer<DataT, CheckInterval>::timer_once, &Timer<DataT, CheckInterval>::timer_key_init);
+		Timer<DataT, CheckInterval>* pTimer = (Timer<DataT, CheckInterval>*)pthread_getspecific(Timer<DataT, CheckInterval>::timer_key);
+		if(!pTimer)
+		{
+			pTimer = new Timer<DataT, CheckInterval>();
+			pthread_setspecific(Timer<DataT, CheckInterval>::timer_key, pTimer);
+		}
+		return *pTimer;
+	}
+
+#else
+	static Timer<DataT, CheckInterval>& Instance()
+	{
+		static Timer<DataT, CheckInterval> timer;
+		return timer;
+	}
+#endif
+
 	template<typename ServiceT>
 	int SetTimeout(ServiceT* pService, int timeout, DataT data)
 	{
@@ -31,7 +67,7 @@ public:
 		return 0;
 	}
 
-	DataT* GetTimer(int timerId)
+	DataT GetTimer(int timerId)
 	{
 	}
 
@@ -51,37 +87,14 @@ protected:
 
 };
 
-template<int CheckInterval>
-class Timer<void, CheckInterval> :
-	public boost::noncopyable
-{
-public:
-	template<typename ServiceT>
-	int SetTimeout(ServiceT* pService, int timeout)
-	{
-		timeval tv;
-		if(-1 == gettimeofday(&tv, NULL))
-			return -1;
+#if defined(POOL_USE_THREADPOOL)
 
-		int millisec = tv.tv_sec * 1000 + tv.tv_usec / 1000 + timeout;
-		boost::function<void()> callback = boost::bind(&ServiceT::OnTimeout, pService);
-		return 0;
-	}
+template<typename DataT, int CheckInterval>
+pthread_once_t Timer<DataT, CheckInterval>::timer_once = PTHREAD_ONCE_INIT;
 
-	void Update(int timerId, int timeout)
-	{
-	}
+template<typename DataT, int CheckInterval>
+pthread_key_t Timer<DataT, CheckInterval>::timer_key;
 
-	void Clear(int timerId)
-	{
-	}
-
-	void CheckTimer()
-	{
-	}
-
-protected:
-
-};
+#endif
 
 #endif // define __TIMER_HPP__

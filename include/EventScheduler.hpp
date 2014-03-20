@@ -15,6 +15,8 @@
 #include <map>
 #include <exception>
 #include <boost/noncopyable.hpp>
+#include <boost/function.hpp>
+#include <boost/bind.hpp>
 #include "EPoll.hpp"
 #include "Clock.hpp"
 
@@ -60,6 +62,23 @@ public:
 		return instance;
 	}
 #endif
+
+	inline void RegisterIdleCallback(boost::function<void(void)>& callback)
+	{
+		m_IdleCallbackVector.push_back(callback);
+	}
+
+	inline int GetIdleTimeout()
+	{
+		return m_IdleTimeout;
+	}
+
+	inline int SetIdleTimeout(int timeout)
+	{
+		int to = m_IdleTimeout;
+		m_IdleTimeout = timeout;
+		return to;
+	}
 
 	inline int CreateScheduler()
 	{
@@ -114,31 +133,44 @@ public:
 		{
 			ServerInterface<void>* pInterface = NULL;
 			uint32_t events;
-			if(m_Poll.WaitEvent(&pInterface, &events, -1) > 0)
+			int ready = m_Poll.WaitEvent(&pInterface, &events, m_IdleTimeout);
+			try
 			{
-				try
+				if(ready > 0)
 				{
 					if((events & PollT::POLLIN) == PollT::POLLIN)
 						pInterface->OnReadable();
 					else if((events & PollT::POLLOUT) == PollT::POLLOUT)
 						pInterface->OnWriteable();
 				}
-				catch(std::exception& error)
+				else if(ready == 0)
 				{
-					printf("%s\n", error.what());
+					for(std::vector<boost::function<void(void)> >::iterator iter = m_IdleCallbackVector.begin();
+						iter != m_IdleCallbackVector.end();
+						++iter)
+					{
+						(*iter)();
+					}
 				}
+			}
+			catch(std::exception& error)
+			{
+				printf("%s\n", error.what());
 			}
 		}
 	}
 
 protected:
 	EventSchedulerImpl() :
-		m_Quit(false)
+		m_Quit(false),
+		m_IdleTimeout(-1)
 	{
 	}
 
 	bool m_Quit;
+	int m_IdleTimeout;
 	PollT m_Poll;
+	std::vector<boost::function<void(void)> > m_IdleCallbackVector;
 };
 
 #if defined(POOL_USE_THREADPOOL)

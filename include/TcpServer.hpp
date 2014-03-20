@@ -163,6 +163,10 @@ public:
 	}
 
 	// udp server interface
+	virtual ~TcpServer()
+	{
+	}
+
 	virtual void OnConnected(ChannelType& channel)
 	{
 	}

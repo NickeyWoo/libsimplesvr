@@ -114,6 +114,10 @@ public:
 	}
 
 	// tcp client interface
+	virtual ~TcpClient()
+	{
+	}
+
 	virtual void OnConnected(ChannelType& channel)
 	{
 	}

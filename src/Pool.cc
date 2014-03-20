@@ -58,6 +58,15 @@ int ProcessPool::Startup(uint32_t num)
 	}
 
 	m_bStartup = true;
+
+	for(std::vector<boost::function<bool(void)> >::iterator iter = m_StartupCallbackVector.begin();
+		iter != m_StartupCallbackVector.end();
+		++iter)
+	{
+		if(!(*iter)())
+			return -1;
+	}
+
 	scheduler.Dispatch();
 	return 0;
 }
@@ -120,6 +129,15 @@ void* ThreadPool::ThreadProc(void* paramenter)
 		++iter)
 	{
 		if(scheduler.Register(iter->first, iter->second) != 0)
+			return NULL;
+	}
+
+	std::vector<boost::function<bool(void)> >& vec = ThreadPool::Instance().m_StartupCallbackVector;
+	for(std::vector<boost::function<bool(void)> >::iterator iter = vec.begin();
+		iter != vec.end();
+		++iter)
+	{
+		if(!(*iter)())
 			return NULL;
 	}
 

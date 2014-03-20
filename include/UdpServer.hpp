@@ -74,6 +74,10 @@ public:
 	}
 
 	// udp server interface
+	virtual ~UdpServer()
+	{
+	}
+
 	virtual void OnMessage(ChannelType& channel, IOBufferType& in)
 	{
 	}

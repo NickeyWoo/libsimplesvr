@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <boost/noncopyable.hpp>
+#include <sys/select.h>
 #include "Configure.hpp"
 #include "Pool.hpp"
 #include "Server.hpp"
@@ -49,7 +50,7 @@ public:
 	}
 
 	template<typename ClientImplT>
-	bool RegisterClient(ClientImplT& client, const char* szConfigName)
+	bool ConnectToServer(ClientImplT& client, const char* szConfigName, int timeout = 0)
 	{
 		std::map<std::string, std::string> stClientInterface = Configure::Get(szConfigName);
 
@@ -62,7 +63,23 @@ public:
 		if(client.Connect(addr) != 0)
 			return false;
 
-		return (Pool::Instance().Register(&client, EventScheduler::PollType::POLLOUT) == 0);
+		if(timeout == 0)
+			return true;
+
+		int fd = client.m_ServerInterface.m_Channel.fd;
+
+		fd_set writefds;
+		FD_ZERO(&writefds);
+		FD_SET(fd, &writefds);
+
+		timeval tv;
+		bzero(&tv, sizeof(timeval));
+		tv.tv_usec = 1000 * timeout; // 100 millisec timeout
+
+		int ready = select(fd + 1, NULL, &writefds, NULL, &tv);
+		if(ready == -1 || !FD_ISSET(fd, &writefds))
+			return false;
+		return true;
 	}
 
 	void Run()
@@ -72,6 +89,7 @@ public:
 		if(!stGlobalConfig["concurrent"].empty())
 			concurrent = strtoul(stGlobalConfig["concurrent"].c_str(), NULL, 10);
 
+		printf("[%s] startup ...\n", GetName().c_str());
 		Pool& pool = Pool::Instance();
 		if(pool.Startup(concurrent) != 0)
 			printf("[error] startup fail, %s.\n", safe_strerror(errno));
@@ -160,10 +178,8 @@ protected:
 		}																					\
 																							\
 		if(instance.Initialize(argc, argv)) {												\
-			printf("[%s] startup ...\n", instance.GetName().c_str());						\
 			instance.Run();																	\
 		}																					\
-																							\
 		return 0;																			\
 	}
 

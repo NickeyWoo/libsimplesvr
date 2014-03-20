@@ -18,6 +18,7 @@
 #include "storage.hpp"
 #include "hashtable.hpp"
 
+#include "Timer.hpp"
 #include "Pool.hpp"
 #include "Channel.hpp"
 #include "IOBuffer.hpp"
@@ -66,6 +67,8 @@ public:
 				out << pValue->adbuffer[i];
 		}
 
+		Timer<IOBufferType*, 100>::Instance().SetTimeout(this, 100, &in);
+
 		channel << out;
 	}
 /*
@@ -79,7 +82,7 @@ public:
 		printf("[pool:%u][%s:%d] disconnected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
 */
-	void OnTimeout()
+	void OnTimeout(IOBufferType* in)
 	{
 	}
 };
