@@ -12,6 +12,7 @@
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 #include <boost/noncopyable.hpp>
+#include "Pool.hpp"
 
 template<typename DataT, int CheckInterval>
 class Timer :
@@ -58,6 +59,15 @@ public:
 	template<typename ServiceT>
 	int SetTimeout(ServiceT* pService, int timeout, DataT data)
 	{
+		if(!Pool::Instance().IsStartup())
+			return -1;
+
+#if !defined(TIMER_NONEED_CHECKINTERVAL)
+		EventScheduler& scheduler = EventScheduler::Instance();
+		if(scheduler.GetIdleTimeout() > CheckInterval)
+			scheduler.SetIdleTimeout(CheckInterval);
+#endif
+
 		timeval tv;
 		if(-1 == gettimeofday(&tv, NULL))
 			return -1;
@@ -69,18 +79,28 @@ public:
 
 	DataT GetTimer(int timerId)
 	{
+		if(!Pool::Instance().IsStartup())
+			return -1;
+
 	}
 
 	void Update(int timerId, int timeout)
 	{
+		if(!Pool::Instance().IsStartup())
+			return -1;
+
 	}
 
 	void Clear(int timerId)
 	{
+		if(!Pool::Instance().IsStartup())
+			return -1;
+
 	}
 
 	void CheckTimer()
 	{
+
 	}
 
 protected:

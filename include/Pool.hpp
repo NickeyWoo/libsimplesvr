@@ -25,6 +25,11 @@ public:
 	static ProcessPool& Instance();
 	int Startup(uint32_t num = 1);
 
+	inline bool IsStartup()
+	{
+		return m_bStartup;
+	}
+
 	inline void RegisterStartupCallback(boost::function<bool(void)>& callback)
 	{
 		m_StartupCallbackVector.push_back(callback);
@@ -71,6 +76,11 @@ class ThreadPool :
 public:
 	static ThreadPool& Instance();
 	int Startup(uint32_t num = 1);
+
+	inline bool IsStartup()
+	{
+		return m_bStartup;
+	}
 
 	inline void RegisterStartupCallback(boost::function<bool(void)>& callback)
 	{
