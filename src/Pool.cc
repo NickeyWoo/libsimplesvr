@@ -45,7 +45,7 @@ int ProcessPool::Startup(uint32_t num)
 		}
 	}
 
-	EventScheduler& scheduler = EventScheduler::Instance();
+	EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 	if(scheduler.CreateScheduler() == -1)
 		return -1;
 
@@ -59,8 +59,8 @@ int ProcessPool::Startup(uint32_t num)
 
 	m_bStartup = true;
 
-	for(std::vector<boost::function<bool(void)> >::iterator iter = m_StartupCallbackVector.begin();
-		iter != m_StartupCallbackVector.end();
+	for(std::list<boost::function<bool(void)> >::iterator iter = m_StartupCallbackList.begin();
+		iter != m_StartupCallbackList.end();
 		++iter)
 	{
 		if(!(*iter)())
@@ -119,7 +119,7 @@ void* ThreadPool::ThreadProc(void* paramenter)
 	}
 	*pID = static_cast<uint32_t>(reinterpret_cast<long>(paramenter));
 
-	EventScheduler& scheduler = EventScheduler::Instance();
+	EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 	if(scheduler.CreateScheduler() == -1)
 		return NULL;
 
@@ -132,9 +132,9 @@ void* ThreadPool::ThreadProc(void* paramenter)
 			return NULL;
 	}
 
-	std::vector<boost::function<bool(void)> >& vec = ThreadPool::Instance().m_StartupCallbackVector;
-	for(std::vector<boost::function<bool(void)> >::iterator iter = vec.begin();
-		iter != vec.end();
+	std::list<boost::function<bool(void)> >& list = ThreadPool::Instance().m_StartupCallbackList;
+	for(std::list<boost::function<bool(void)> >::iterator iter = list.begin();
+		iter != list.end();
 		++iter)
 	{
 		if(!(*iter)())

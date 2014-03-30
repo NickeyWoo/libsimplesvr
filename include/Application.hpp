@@ -33,7 +33,25 @@ public:
 	}
 
 	template<typename ServerImplT>
-	bool RegisterServer(ServerImplT& server, const char* szConfigName)
+	bool RegisterUdpServer(ServerImplT& server, const char* szConfigName)
+	{
+	/*
+		std::map<std::string, std::string> stServerInterface = Configure::Get(szConfigName);
+
+		sockaddr_in addr;
+		bzero(&addr, sizeof(sockaddr_in));
+		addr.sin_family = PF_INET;
+		addr.sin_port = htons(atoi(stServerInterface["port"].c_str()));
+		addr.sin_addr.s_addr = inet_addr(stServerInterface["ip"].c_str());
+
+		if(server.Listen(addr) != 0)
+			return false;
+	*/
+		return true;
+	}
+
+	template<typename ServerImplT>
+	bool RegisterTcpServer(ServerImplT& server, const char* szConfigName)
 	{
 		std::map<std::string, std::string> stServerInterface = Configure::Get(szConfigName);
 

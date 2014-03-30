@@ -13,31 +13,31 @@
 #include <string>
 #include <time.h>
 #include <boost/noncopyable.hpp>
+#include <PoolObject.hpp>
 
 #ifdef DEBUG
 	#define DEBUG_CLOCK_TRACE(msg)		\
-		Clock::Instance().Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
+		PoolObject<Clock>::Instance().Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
 #else
 	#define DEBUG_CLOCK_TRACE(msg)
 #endif
 
 #ifdef LDEBUG
 	#define LDEBUG_CLOCK_TRACE(msg)	\
-		Clock::Instance().Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
+		PoolObject<Clock>::Instance().Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
 #else
 	#define LDEBUG_CLOCK_TRACE(msg)
 #endif
 
 #define CLOCK_TRACE(msg)	\
-		Clock::Instance().Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
+		PoolObject<Clock>::Instance().Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
 #define CLOCK_CLEAR()	\
-		Clock::Instance().Clear()
+		PoolObject<Clock>::Instance().Clear()
 
 class Clock :
 	public boost::noncopyable
 {
 public:
-	static Clock& Instance();
 	uint64_t Tick();
 	uint64_t Tick(const char* message);
 	void Clear();
@@ -45,7 +45,6 @@ public:
 	void Dump();
 
 private:
-	Clock();
 	std::list<std::pair<std::string, timespec> > m_ClockList;
 };
 

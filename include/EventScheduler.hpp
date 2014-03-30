@@ -12,6 +12,7 @@
 #include <utility>
 #include <string>
 #include <vector>
+#include <list>
 #include <map>
 #include <exception>
 #include <boost/noncopyable.hpp>
@@ -27,45 +28,9 @@ class EventSchedulerImpl :
 public:
 	typedef PollT PollType;
 
-#if defined(POOL_USE_THREADPOOL)
-
-	static pthread_once_t scheduler_once;
-	static pthread_key_t scheduler_key;
-
-	static void scheduler_free(void* buffer)
+	inline void RegisterIdleCallback(boost::function<void(void)> callback)
 	{
-		EventSchedulerImpl<PollT>* pScheduler = (EventSchedulerImpl<PollT>*)buffer;
-		delete pScheduler;
-	}
-
-	static void scheduler_key_init()
-	{
-		pthread_key_create(&EventSchedulerImpl<PollT>::scheduler_key, &EventSchedulerImpl<PollT>::scheduler_free);
-	}
-
-	static EventSchedulerImpl<PollT>& Instance()
-	{
-		pthread_once(&EventSchedulerImpl<PollT>::scheduler_once, &EventSchedulerImpl<PollT>::scheduler_key_init);
-		EventSchedulerImpl<PollT>* pScheduler = (EventSchedulerImpl<PollT>*)pthread_getspecific(EventSchedulerImpl<PollT>::scheduler_key);
-		if(!pScheduler)
-		{
-			pScheduler = new EventSchedulerImpl<PollT>();
-			pthread_setspecific(EventSchedulerImpl<PollT>::scheduler_key, pScheduler);
-		}
-		return *pScheduler;
-	}
-
-#else
-	static EventSchedulerImpl<PollT>& Instance()
-	{
-		static EventSchedulerImpl<PollT> instance;
-		return instance;
-	}
-#endif
-
-	inline void RegisterIdleCallback(boost::function<void(void)>& callback)
-	{
-		m_IdleCallbackVector.push_back(callback);
+		m_IdleCallbackList.push_back(callback);
 	}
 
 	inline int GetIdleTimeout()
@@ -145,8 +110,8 @@ public:
 				}
 				else if(ready == 0)
 				{
-					for(std::vector<boost::function<void(void)> >::iterator iter = m_IdleCallbackVector.begin();
-						iter != m_IdleCallbackVector.end();
+					for(std::list<boost::function<void(void)> >::iterator iter = m_IdleCallbackList.begin();
+						iter != m_IdleCallbackList.end();
 						++iter)
 					{
 						(*iter)();
@@ -160,28 +125,18 @@ public:
 		}
 	}
 
-protected:
 	EventSchedulerImpl() :
 		m_Quit(false),
 		m_IdleTimeout(-1)
 	{
 	}
 
+protected:
 	bool m_Quit;
 	int m_IdleTimeout;
 	PollT m_Poll;
-	std::vector<boost::function<void(void)> > m_IdleCallbackVector;
+	std::list<boost::function<void(void)> > m_IdleCallbackList;
 };
-
-#if defined(POOL_USE_THREADPOOL)
-
-template<typename PollT>
-pthread_once_t EventSchedulerImpl<PollT>::scheduler_once = PTHREAD_ONCE_INIT;
-
-template<typename PollT>
-pthread_key_t EventSchedulerImpl<PollT>::scheduler_key;
-
-#endif
 
 typedef EventSchedulerImpl<EPoll> EventScheduler;
 

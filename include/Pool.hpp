@@ -15,7 +15,9 @@
 #include <utility>
 #include <string>
 #include <vector>
+#include <list>
 #include <map>
+#include "PoolObject.hpp"
 #include "EventScheduler.hpp"
 
 class ProcessPool :
@@ -30,14 +32,12 @@ public:
 		return m_bStartup;
 	}
 
-	inline void RegisterStartupCallback(boost::function<bool(void)>& callback)
+	inline void RegisterStartupCallback(boost::function<bool(void)> callback, bool front = false)
 	{
-		m_StartupCallbackVector.push_back(callback);
-	}
-
-	inline void RegisterIdleCallback(boost::function<void(void)>& callback)
-	{
-		m_IdleCallbackVector.push_back(callback);
+		if(front)
+			m_StartupCallbackList.push_front(callback);
+		else
+			m_StartupCallbackList.push_back(callback);
 	}
 
 	template<typename ServiceT>
@@ -50,7 +50,7 @@ public:
 		}
 		else
 		{
-			EventScheduler& scheduler = EventScheduler::Instance();
+			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 			return scheduler.Register(pService, events);
 		}
 	}
@@ -66,8 +66,7 @@ protected:
 	bool m_bStartup;
 	uint32_t m_id;
 	std::vector<std::pair<ServerInterface<void>*, int> > m_vRegisterService;
-	std::vector<boost::function<bool(void)> > m_StartupCallbackVector;
-	std::vector<boost::function<void(void)> > m_IdleCallbackVector;
+	std::list<boost::function<bool(void)> > m_StartupCallbackList;
 };
 
 class ThreadPool :
@@ -82,9 +81,12 @@ public:
 		return m_bStartup;
 	}
 
-	inline void RegisterStartupCallback(boost::function<bool(void)>& callback)
+	inline void RegisterStartupCallback(boost::function<bool(void)> callback, bool front = false)
 	{
-		m_StartupCallbackVector.push_back(callback);
+		if(front)
+			m_StartupCallbackList.push_front(callback);
+		else
+			m_StartupCallbackList.push_back(callback);
 	}
 
 	template<typename ServiceT>
@@ -97,7 +99,7 @@ public:
 		}
 		else
 		{
-			EventScheduler& scheduler = EventScheduler::Instance();
+			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 			return scheduler.Register(pService, events);
 		}
 	}
@@ -110,7 +112,7 @@ protected:
 
 	bool m_bStartup;
 	std::vector<std::pair<ServerInterface<void>*, int> > m_vRegisterService;
-	std::vector<boost::function<bool(void)> > m_StartupCallbackVector;
+	std::list<boost::function<bool(void)> > m_StartupCallbackList;
 };
 
 #if defined(POOL_USE_THREADPOOL)

@@ -16,48 +16,6 @@
 #include <time.h>
 #include "Clock.hpp"
 
-#if defined(POOL_USE_THREADPOOL)
-
-pthread_once_t clock_once = PTHREAD_ONCE_INIT;
-pthread_key_t clock_key;
-
-void clock_free(void* buffer)
-{
-	Clock* pClock = (Clock*)buffer;
-	delete pClock;
-}
-
-void clock_key_init()
-{
-	pthread_key_create(&clock_key, &clock_free);
-}
-
-Clock& Clock::Instance()
-{
-	pthread_once(&clock_once, &clock_key_init);
-	Clock* pClock = (Clock*)pthread_getspecific(clock_key);
-	if(!pClock)
-	{
-		pClock = new Clock();
-		pthread_setspecific(clock_key, pClock);
-	}
-	return *pClock;
-}
-
-#else
-
-Clock& Clock::Instance()
-{
-	static Clock instance;
-	return instance;
-}
-
-#endif
-
-Clock::Clock()
-{
-}
-
 uint64_t Clock::Tick()
 {
 	timespec ts;
