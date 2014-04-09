@@ -62,7 +62,7 @@ public:
 		if(getpeername(pInterface->m_Channel.fd, (sockaddr*)&pInterface->m_Channel.address, &len) == -1)
 			throw InternalException((boost::format("[%s:%d][error] getpeername fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
 
-		EventScheduler& scheduler = EventScheduler::Instance();
+		EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 		if(scheduler.Update(this, EventScheduler::PollType::POLLIN) == -1)
 			throw InternalException((boost::format("[%s:%d][error] epoll_ctl update sockfd fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
 
@@ -94,7 +94,7 @@ public:
 									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
 									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 
-			EventScheduler& scheduler = EventScheduler::Instance();
+			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 			scheduler.UnRegister(this);
 			shutdown(pInterface->m_Channel.fd, SHUT_RDWR);
 			close(pInterface->m_Channel.fd);

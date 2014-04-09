@@ -100,7 +100,7 @@ public:
 		pChannelInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
 		pChannelInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);
 
-		EventScheduler& scheduler = EventScheduler::Instance();
+		EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 		if(scheduler.Register(pChannelInterface, EventScheduler::PollType::POLLIN) == -1)
 		{
 			shutdown(pChannelInterface->m_Channel.fd, SHUT_RDWR);
@@ -138,7 +138,7 @@ public:
 									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
 									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
 
-			EventScheduler& scheduler = EventScheduler::Instance();
+			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 			scheduler.UnRegister(pInterface);
 			shutdown(pInterface->m_Channel.fd, SHUT_RDWR);
 			close(pInterface->m_Channel.fd);

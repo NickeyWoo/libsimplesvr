@@ -13,7 +13,7 @@
 #include <string>
 #include <time.h>
 #include <boost/noncopyable.hpp>
-#include <PoolObject.hpp>
+#include "PoolObject.hpp"
 
 #ifdef DEBUG
 	#define DEBUG_CLOCK_TRACE(msg)		\

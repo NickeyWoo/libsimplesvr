@@ -40,8 +40,8 @@ struct Request {
 };
 
 class tweetadsd :
-//	public UdpServer<tweetadsd>
-	public TcpServer<tweetadsd>
+	public UdpServer<tweetadsd>
+//	public TcpServer<tweetadsd>
 {
 public:
 	void OnMessage(ChannelType& channel, IOBufferType& in)
@@ -67,6 +67,7 @@ public:
 				out << pValue->adbuffer[i];
 		}
 
+		PoolObject<Timer<void> >::Instance().SetTimeout(this, 100);
 		channel << out;
 	}
 
@@ -80,7 +81,7 @@ public:
 		printf("[pool:%u][%s:%d] disconnected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
 
-	void OnTimeout(IOBufferType* in)
+	void OnTimeout()
 	{
 	}
 };
@@ -109,6 +110,16 @@ public:
 
 	bool Initialize(int argc, char* argv[])
 	{
+		Timer<void, 1> timer;
+		for(int i=0; i<(1 << (8+6)); ++i)
+			timer.SetTimeout(&m_tweetadsd, i);
+
+		//timer.Dump();
+		sleep(1);
+		timer.CheckTimer();
+		timer.Dump();
+		return false;
+
 		if(!RegisterTcpServer(m_tweetadsd, "server_interface"))
 			return false;
 
