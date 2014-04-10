@@ -163,4 +163,41 @@ protected:
 	typedef ProcessPool Pool;
 #endif
 
+#ifdef TIMER_NO_TIMERSTARTUP
+	#error before the Timer.hpp needs to Pool.hpp
+#endif
+
+#define TIMER_NEED_TIMERSTARTUP
+
+template<typename TimerBaseT, int32_t Interval>
+class TimerStartup :
+	public boost::noncopyable
+{
+public:
+	TimerStartup()
+	{
+		if(Pool::Instance().IsStartup())
+			Startup();
+		else
+			Pool::Instance().RegisterStartupCallback(boost::bind(&TimerBaseT::Startup, reinterpret_cast<TimerBaseT*>(this)), true);
+	}
+
+	virtual ~TimerStartup()
+	{
+		// need free idle callback and startup callback.
+	}
+
+	bool Startup()
+	{
+		EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
+
+		int timeout = scheduler.GetIdleTimeout();
+		if(timeout == -1 || timeout > Interval)
+			scheduler.SetIdleTimeout(Interval);
+
+		scheduler.RegisterIdleCallback(boost::bind(&TimerBaseT::CheckTimer, reinterpret_cast<TimerBaseT*>(this)));
+		return true;
+	}
+};
+
 #endif // define __POOL_HPP__

@@ -17,8 +17,6 @@
 #include <boost/bind.hpp>
 #include <boost/unordered_map.hpp>
 #include <boost/noncopyable.hpp>
-#include "PoolObject.hpp"
-#include "Pool.hpp"
 
 #ifndef TIMER_DEFAULT_INTERVAL
 	// default check interval 10ms
@@ -78,16 +76,21 @@ struct TimerItem<void, IdT, TimeValueT>
 	}
 };
 
-template<typename DataT, typename IdT, typename TimeValueT, uint32_t Interval>
+template<typename DataT, typename IdT, typename TimeValueT, int32_t Interval>
 class TimerBase :
+#ifdef TIMER_NEED_TIMERSTARTUP
+	public TimerStartup<TimerBase<DataT, IdT, TimeValueT, Interval>, Interval>
+#else
+	#define TIMER_NO_TIMERSTARTUP
 	public boost::noncopyable
+#endif
 {
 protected:
 	IdT m_LastTimerId;
 	TimeValueT m_LastTimeval;
 
-#define TVN_BITS	2
-#define TVR_BITS	2
+#define TVN_BITS	6
+#define TVR_BITS	8
 #define TVN_SIZE	(1 << TVN_BITS)
 #define TVR_SIZE	(1 << TVR_BITS)
 #define TVN_MASK	(TVN_SIZE - 1)
@@ -328,7 +331,7 @@ public:
 
 };
 
-template<typename DataT, uint32_t Interval = TIMER_DEFAULT_INTERVAL>
+template<typename DataT, int32_t Interval = TIMER_DEFAULT_INTERVAL>
 class Timer :
 	public TimerBase<DataT, uint32_t, uint64_t, Interval>
 {
@@ -367,7 +370,7 @@ public:
 			return &iter->second->Data;
 	}
 };
-template<uint32_t Interval>
+template<int32_t Interval>
 class Timer<void, Interval> :
 	public TimerBase<void, uint32_t, uint64_t, Interval>
 {

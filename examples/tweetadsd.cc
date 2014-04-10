@@ -18,13 +18,13 @@
 #include "storage.hpp"
 #include "hashtable.hpp"
 
-#include "Timer.hpp"
+#include "Configure.hpp"
 #include "Pool.hpp"
 #include "Channel.hpp"
 #include "IOBuffer.hpp"
 #include "TcpServer.hpp"
 #include "UdpServer.hpp"
-#include "Configure.hpp"
+#include "Timer.hpp"
 #include "Application.hpp"
 
 struct TweetADS {
@@ -95,6 +95,8 @@ class MyApp :
 public:
 	void InitializeData()
 	{
+		PoolObject<Timer<void, 1> >::Instance().SetTimeout(&m_tweetadsd, 100);
+
 		printf("initialize data ...\n");
 		uint64_t i = 0;
 		for(; i < 1000000; ++i)
@@ -115,6 +117,8 @@ public:
 	{
 		if(!RegisterTcpServer(m_tweetadsd, "server_interface"))
 			return false;
+
+		PoolObject<Timer<void> >::Instance().SetTimeout(&m_tweetadsd, 100);
 
 		// other initialize
 		std::map<std::string, std::string> stStorageConfig = Configure::Get("storage");
