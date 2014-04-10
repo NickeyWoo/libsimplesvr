@@ -83,6 +83,9 @@ public:
 
 	void OnTimeout()
 	{
+		static int i = 0;
+		printf("i: %d\n", i);
+		++i;
 	}
 };
 
@@ -110,16 +113,6 @@ public:
 
 	bool Initialize(int argc, char* argv[])
 	{
-		Timer<void, 1> timer;
-		for(int i=0; i<(1 << (8+6)); ++i)
-			timer.SetTimeout(&m_tweetadsd, i);
-
-		//timer.Dump();
-		sleep(1);
-		timer.CheckTimer();
-		timer.Dump();
-		return false;
-
 		if(!RegisterTcpServer(m_tweetadsd, "server_interface"))
 			return false;
 

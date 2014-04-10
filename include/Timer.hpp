@@ -86,8 +86,8 @@ protected:
 	IdT m_LastTimerId;
 	TimeValueT m_LastTimeval;
 
-#define TVN_BITS	6
-#define TVR_BITS	8
+#define TVN_BITS	2
+#define TVR_BITS	2
 #define TVN_SIZE	(1 << TVN_BITS)
 #define TVR_SIZE	(1 << TVR_BITS)
 #define TVN_MASK	(TVN_SIZE - 1)
@@ -140,7 +140,7 @@ protected:
 		{
 			TimeValueT tv = pItem->Timeval;
 			if(idx > MAX_TVAL)
-				tv = m_LastTimeval;
+				tv = MAX_TVAL;
 			ppVector = &m_Vector5[(tv >> (TVR_BITS + 3*TVN_BITS)) & TVN_MASK];
 		}
 
@@ -173,6 +173,34 @@ protected:
 			pTimerItem = pNextItem;
 		}
 		return (index != 0);
+	}
+
+	void PrintVector(TimerItem<DataT, IdT, TimeValueT>** pVector, int size)
+	{
+		for(int i=0; i<size; ++i)
+		{
+			TimerItem<DataT, IdT, TimeValueT>* pItem = pVector[i];
+			printf("  %03d ", i);
+			if(pItem)
+			{
+				bool b = true;
+				while(pItem)
+				{
+					TimerItem<DataT, IdT, TimeValueT>* pNext = pItem->NextItem;
+					if(b)
+					{
+						printf("timeval: (0x%016lX)%lu\n", pItem->Timeval, pItem->Timeval);
+						b = false;
+					}
+					else
+						printf("      timeval: (0x%016lX)%lu\n", pItem->Timeval, pItem->Timeval);
+
+					pItem = pNext;
+				}
+			}
+			else
+				printf("timeval: NULL\n");
+		}
 	}
 
 public:
@@ -268,34 +296,6 @@ public:
 
 				delete pItem;
 			}
-		}
-	}
-
-	void PrintVector(TimerItem<DataT, IdT, TimeValueT>** pVector, int size)
-	{
-		for(int i=0; i<size; ++i)
-		{
-			TimerItem<DataT, IdT, TimeValueT>* pItem = pVector[i];
-			printf("  %03d ", i);
-			if(pItem)
-			{
-				bool b = true;
-				while(pItem)
-				{
-					TimerItem<DataT, IdT, TimeValueT>* pNext = pItem->NextItem;
-					if(b)
-					{
-						printf("timeval: (0x%016lX)%lu\n", pItem->Timeval, pItem->Timeval);
-						b = false;
-					}
-					else
-						printf("      timeval: (0x%016lX)%lu\n", pItem->Timeval, pItem->Timeval);
-
-					pItem = pNext;
-				}
-			}
-			else
-				printf("timeval: NULL\n");
 		}
 	}
 
