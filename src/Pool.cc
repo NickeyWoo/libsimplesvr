@@ -27,7 +27,8 @@ ProcessPool& ProcessPool::Instance()
 
 ProcessPool::ProcessPool() :
 	m_bStartup(false),
-	m_id(0)
+	m_id(0),
+	m_IdleTimeout(-1)
 {
 }
 
@@ -48,6 +49,8 @@ int ProcessPool::Startup(uint32_t num)
 	EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 	if(scheduler.CreateScheduler() == -1)
 		return -1;
+
+	scheduler.SetIdleTimeout(m_IdleTimeout);
 
 	for(std::vector<std::pair<ServerInterface<void>*, int> >::iterator iter = m_vRegisterService.begin();
 		iter != m_vRegisterService.end();
@@ -124,6 +127,8 @@ void* ThreadPool::ThreadProc(void* paramenter)
 		return NULL;
 
 	ThreadPool& pool = ThreadPool::Instance();
+	scheduler.SetIdleTimeout(pool.m_IdleTimeout);
+
 	for(std::vector<std::pair<ServerInterface<void>*, int> >::iterator iter = pool.m_vRegisterService.begin();
 		iter != pool.m_vRegisterService.end();
 		++iter)
@@ -160,7 +165,8 @@ uint32_t ThreadPool::GetID()
 }
 
 ThreadPool::ThreadPool() :
-	m_bStartup(false)
+	m_bStartup(false),
+	m_IdleTimeout(-1)
 {
 }
 

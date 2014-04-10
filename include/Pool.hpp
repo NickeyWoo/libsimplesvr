@@ -60,11 +60,32 @@ public:
 		return m_id;
 	}
 
+	inline int SetIdleTimeout(int timeout)
+	{
+		if(!m_bStartup)
+		{
+			int old = m_IdleTimeout;
+			m_IdleTimeout = timeout;
+			return old;
+		}
+		else
+			return PoolObject<EventScheduler>::Instance().SetIdleTimeout(timeout);
+	}
+
+	inline int GetIdleTimeout()
+	{
+		if(!m_bStartup)
+			return m_IdleTimeout;
+		else
+			return PoolObject<EventScheduler>::Instance().GetIdleTimeout();
+	}
+
 protected:
 	ProcessPool();
 
 	bool m_bStartup;
 	uint32_t m_id;
+	int m_IdleTimeout;
 	std::vector<std::pair<ServerInterface<void>*, int> > m_vRegisterService;
 	std::list<boost::function<bool(void)> > m_StartupCallbackList;
 };
@@ -104,6 +125,26 @@ public:
 		}
 	}
 
+	inline int SetIdleTimeout(int timeout)
+	{
+		if(!m_bStartup)
+		{
+			int old = m_IdleTimeout;
+			m_IdleTimeout = timeout;
+			return old;
+		}
+		else
+			return PoolObject<EventScheduler>::Instance().SetIdleTimeout(timeout);
+	}
+
+	inline int GetIdleTimeout()
+	{
+		if(!m_bStartup)
+			return m_IdleTimeout;
+		else
+			return PoolObject<EventScheduler>::Instance().GetIdleTimeout();
+	}
+
 	uint32_t GetID();
 
 protected:
@@ -111,6 +152,7 @@ protected:
 	static void* ThreadProc(void* paramenter);
 
 	bool m_bStartup;
+	int m_IdleTimeout;
 	std::vector<std::pair<ServerInterface<void>*, int> > m_vRegisterService;
 	std::list<boost::function<bool(void)> > m_StartupCallbackList;
 };
