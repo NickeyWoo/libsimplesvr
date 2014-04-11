@@ -143,7 +143,7 @@ protected:
 		{
 			TimeValueT tv = pItem->Timeval;
 			if(idx > MAX_TVAL)
-				tv = MAX_TVAL;
+				tv = MAX_TVAL + m_LastTimeval;
 			ppVector = &m_Vector5[(tv >> (TVR_BITS + 3*TVN_BITS)) & TVN_MASK];
 		}
 
