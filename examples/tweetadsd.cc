@@ -118,8 +118,6 @@ public:
 		if(!RegisterTcpServer(m_tweetadsd, "server_interface"))
 			return false;
 
-		PoolObject<Timer<void> >::Instance().SetTimeout(&m_tweetadsd, 100);
-
 		// other initialize
 		std::map<std::string, std::string> stStorageConfig = Configure::Get("storage");
 		Seed seed(atoi(stStorageConfig["seed"].c_str()), atoi(stStorageConfig["count"].c_str()));
