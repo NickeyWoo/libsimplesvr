@@ -17,6 +17,11 @@ class Configure
 public:
 	static int Load(const char* szFile);
 
+	static inline std::map<std::string, std::string>& Get(std::string name)
+	{
+		return Configure::m_ConfigMap[name];
+	}
+
 	static inline std::map<std::string, std::string>& Get(const char* name)
 	{
 		return Configure::m_ConfigMap[name];

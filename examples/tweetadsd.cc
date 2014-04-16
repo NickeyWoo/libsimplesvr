@@ -116,7 +116,8 @@ public:
 
 	bool Initialize(int argc, char* argv[])
 	{
-		if(!RegisterTcpServer(m_tweetadsd, "server_interface"))
+		//if(!RegisterTcpServer(m_tweetadsd, "server_interface"))
+		if(!RegisterUdpServer<tweetadsd>("server_interface"))
 			return false;
 
 		// other initialize

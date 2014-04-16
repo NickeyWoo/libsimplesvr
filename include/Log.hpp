@@ -17,34 +17,11 @@
 
 extern const char* safe_strerror(int error);
 
-class TextFormat
-{
-public:
-	TextFormat()
-	{
-	}
-
-	TextFormat(const char* str) :
-		m_str(str)
-	{
-	}
-
-	std::string m_str;
-};
-
-template<typename FormatT = TextFormat>
 class Log :
 	public boost::noncopyable
 {
 public:
-	Log<FormatT>& operator << (TextFormat tf)
-	{
-		printf("Log: %s\n", tf.m_str.c_str());
-		return *this;
-	}
 
-protected:
-	FormatT m_Format;
 };
 
 

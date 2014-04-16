@@ -15,6 +15,7 @@
 #include <boost/noncopyable.hpp>
 #include <sys/select.h>
 #include "Configure.hpp"
+#include "Log.hpp"
 #include "Pool.hpp"
 #include "Server.hpp"
 #include "UdpServer.hpp"
@@ -32,27 +33,12 @@ public:
 		return instance;
 	}
 
-	bool OnPoolStartupForUdpServer()
-	{
-	/*
-		std::map<std::string, std::string> stServerInterface = Configure::Get(szConfigName);
-
-		sockaddr_in addr;
-		bzero(&addr, sizeof(sockaddr_in));
-		addr.sin_family = PF_INET;
-		addr.sin_port = htons(atoi(stServerInterface["port"].c_str()) + Pool::Instance().GetID());
-		addr.sin_addr.s_addr = inet_addr(stServerInterface["ip"].c_str());
-
-		if(server.Listen(addr) != 0)
-			return false;
-	*/
-		return true;
-	}
-
 	template<typename ServerImplT>
-	bool RegisterUdpServer(ServerImplT& server, const char* szConfigName)
+	bool RegisterUdpServer(const char* szConfigName)
 	{
-		Pool::Instance().RegisterStartupCallback(boost::bind(&Application<ApplicationImplT>::OnPoolStartupForUdpServer, this));
+		UdpServerStartup<ServerImplT, std::string>& startup = PoolObject<UdpServerStartup<ServerImplT, std::string> >::Instance();
+		startup.m_Data = std::string(szConfigName);
+		startup.Register();
 		return true;
 	}
 
@@ -71,6 +57,15 @@ public:
 			return false;
 
 		return (Pool::Instance().Register(&server, EventScheduler::PollType::POLLIN) == 0);
+	}
+
+	template<typename ClientImplT>
+	bool ConnectToServer(const char* szConfigName)
+	{
+		TcpClientStartup<ClientImplT, std::string>& startup = PoolObject<TcpClientStartup<ClientImplT, std::string> >::Instance();
+		startup.m_Data = std::string(szConfigName);
+		startup.Register();
+		return true;
 	}
 
 	template<typename ClientImplT>
@@ -108,14 +103,14 @@ public:
 
 	void Run()
 	{
-		uint32_t concurrent = 1;
+		uint32_t concurrency = 1;
 		std::map<std::string, std::string> stGlobalConfig = Configure::Get("global");
-		if(!stGlobalConfig["concurrent"].empty())
-			concurrent = strtoul(stGlobalConfig["concurrent"].c_str(), NULL, 10);
+		if(!stGlobalConfig["concurrency"].empty())
+			concurrency = strtoul(stGlobalConfig["concurrency"].c_str(), NULL, 10);
 
 		printf("[%s] startup ...\n", GetName().c_str());
 		Pool& pool = Pool::Instance();
-		if(pool.Startup(concurrent) != 0)
+		if(pool.Startup(concurrency) != 0)
 			printf("[error] startup fail, %s.\n", safe_strerror(errno));
 	}
 
@@ -159,6 +154,74 @@ public:
 			return false;
 		return true;
 	}
+
+	template<typename ServerImplT, typename StartupDataT>
+	class UdpServerStartup :
+		public boost::noncopyable
+	{
+	public:
+		void Register()
+		{
+			if(Pool::Instance().IsStartup())
+				OnStartup();
+			else
+				Pool::Instance().RegisterStartupCallback(boost::bind(&UdpServerStartup<ServerImplT, StartupDataT>::OnStartup, this));
+		}
+
+		bool OnStartup()
+		{
+			std::map<std::string, std::string> stServerInterface = Configure::Get(m_Data);
+
+			sockaddr_in addr;
+			bzero(&addr, sizeof(sockaddr_in));
+			addr.sin_family = PF_INET;
+			addr.sin_port = htons(atoi(stServerInterface["port"].c_str()) + Pool::Instance().GetID());
+			addr.sin_addr.s_addr = inet_addr(stServerInterface["ip"].c_str());
+
+			ServerImplT& server = PoolObject<ServerImplT>::Instance();
+			if(server.Listen(addr) != 0)
+				return false;
+
+			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
+			return (scheduler.Register(&server, EventScheduler::PollType::POLLIN) == 0);
+		}
+	
+		StartupDataT m_Data;
+	};
+
+	template<typename ClientImplT, typename StartupDataT>
+	class TcpClientStartup :
+		public boost::noncopyable
+	{
+	public:
+		void Register()
+		{
+			if(Pool::Instance().IsStartup())
+				OnStartup();
+			else
+				Pool::Instance().RegisterStartupCallback(boost::bind(&TcpClientStartup<ClientImplT, StartupDataT>::OnStartup, this));
+		}
+
+		bool OnStartup()
+		{
+			std::map<std::string, std::string> stClientInterface = Configure::Get(m_Data);
+
+			sockaddr_in addr;
+			bzero(&addr, sizeof(sockaddr_in));
+			addr.sin_family = PF_INET;
+			addr.sin_port = htons(atoi(stClientInterface["port"].c_str()));
+			addr.sin_addr.s_addr = inet_addr(stClientInterface["ip"].c_str());
+
+			ClientImplT& server = PoolObject<ClientImplT>::Instance();
+			if(server.Connect(addr) != 0)
+				return false;
+
+			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
+			return (scheduler.Register(&server, EventScheduler::PollType::POLLOUT) == 0);
+		}
+	
+		StartupDataT m_Data;
+	};
 
 protected:
 	Application() :
