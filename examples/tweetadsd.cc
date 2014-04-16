@@ -12,6 +12,7 @@
 #include <sys/epoll.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <boost/format.hpp>
 
 #include "utility.hpp"
 #include "keyutility.hpp"

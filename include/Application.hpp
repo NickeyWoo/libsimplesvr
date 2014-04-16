@@ -34,6 +34,7 @@ public:
 
 	bool OnPoolStartupForUdpServer()
 	{
+	/*
 		std::map<std::string, std::string> stServerInterface = Configure::Get(szConfigName);
 
 		sockaddr_in addr;
@@ -44,7 +45,7 @@ public:
 
 		if(server.Listen(addr) != 0)
 			return false;
-
+	*/
 		return true;
 	}
 

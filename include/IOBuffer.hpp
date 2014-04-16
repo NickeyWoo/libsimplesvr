@@ -113,10 +113,82 @@ public:
 		return m_WritePosition;
 	}
 
+	inline void Dump()
+	{
+		std::string strHexDump;
+		Dump(strHexDump);
+		printf("%s", strHexDump.c_str());
+	}
+
+	void Dump(std::string& str)
+	{
+		size_t len = m_AvailableReadSize;
+		if(m_AvailableReadSize == 0)
+			len = m_WritePosition;
+		if(len == 0)
+		{
+			str.append("___|__0__1__2__3__4__5__6__7__8__9__A__B__C__D__E__F_|_________________\n");
+			str.append("00 |                                                 |\n");
+			return;
+		}
+
+		int iLineCount = len / 16;
+		int iMod = len % 16;
+		if(iMod != 0)
+			++iLineCount;
+
+		int iLeftAlign = GetLeftAlignSize(iLineCount);
+		std::string strLineNumFormat = (boost::format("%%0%dX0 | ") % iLeftAlign).str();
+
+		str.append(iLeftAlign, '_');
+		str.append("__|__0__1__2__3__4__5__6__7__8__9__A__B__C__D__E__F_|_________________\n");
+
+		int iLineNum = 0;
+		str.append((boost::format(strLineNumFormat) % iLineNum).str());
+
+		char szStrBuffer[17] = {0x0};
+		for(size_t i=0; i<len; ++i)
+		{
+			unsigned char c = (unsigned char)m_Buffer[i];
+			str.append((boost::format("%02X ") % (uint32_t)c).str());
+
+			int idx = i % 16;
+			if(c > 31 && c < 127)
+				szStrBuffer[idx] = c;
+			else
+				szStrBuffer[idx] = '.';
+
+			if((i + 1) % 16 == 0)
+			{
+				str.append((boost::format("| %s\n") % szStrBuffer).str());
+				if((i + 1) >= len)
+					break;
+
+				memset(szStrBuffer, 0, 17);
+				++iLineNum;
+				str.append((boost::format(strLineNumFormat) % iLineNum).str());
+			}
+		}
+		if(iMod)
+		{
+			str.append((16 - iMod) * 3, ' ');
+			str.append((boost::format("| %s\n") % szStrBuffer).str());
+		}
+	}
+
 	size_t m_ReadPosition;
 	size_t m_AvailableReadSize;
 	size_t m_WritePosition;
 	char m_Buffer[IOBufferSize];
+
+private:
+	int GetLeftAlignSize(long long int llNum)
+	{
+		char buffer[23];
+		memset(buffer, 0, 23);
+		sprintf(buffer, "%llx", llNum);
+		return strlen(buffer);
+	}
 };
 
 template<size_t IOBufferSize>
