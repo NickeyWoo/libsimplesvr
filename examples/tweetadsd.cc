@@ -25,6 +25,7 @@
 #include "IOBuffer.hpp"
 #include "TcpServer.hpp"
 #include "UdpServer.hpp"
+#include "TcpClient.hpp"
 #include "Timer.hpp"
 #include "Application.hpp"
 
@@ -41,12 +42,13 @@ struct Request {
 };
 
 class tweetadsd :
-	public UdpServer<tweetadsd>
-//	public TcpServer<tweetadsd>
+//	public UdpServer<tweetadsd>
+	public TcpServer<tweetadsd>
 {
 public:
 	void OnMessage(ChannelType& channel, IOBufferType& in)
 	{
+	/*
 		IOBufferType out;
 
 		Request request;
@@ -70,6 +72,7 @@ public:
 
 		PoolObject<Timer<void> >::Instance().SetTimeout(this, 100);
 		channel << out;
+	*/
 	}
 
 	void OnConnected(ChannelType& channel)
@@ -81,12 +84,58 @@ public:
 	{
 		printf("[pool:%u][%s:%d] disconnected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
+};
+
+class Client :
+	public TcpClient<Client>
+{
+public:
+
+	void OnMessage(ChannelType& channel, IOBufferType& in)
+	{
+	}
+
+	void OnConnected(ChannelType& channel)
+	{
+		printf("[pool:%u][%s:%d] connected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+
+		PoolObject<Timer<void> >::Instance().Clear(m_TimeoutID);
+	}
+
+	void OnError(ChannelType& channel)
+	{
+		printf("[pool:%u][%s:%d] error.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+
+		PoolObject<Timer<void> >::Instance().Clear(m_TimeoutID);
+		m_TimeoutID = PoolObject<Timer<void> >::Instance().SetTimeout(this, 2000);
+	}
+
+	void OnDisconnected(ChannelType& channel)
+	{
+		printf("[pool:%u][%s:%d] disconnected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+
+		Reconnect();
+		PoolObject<EventScheduler>::Instance().Register(this, EventScheduler::PollType::POLLOUT);
+		m_TimeoutID = PoolObject<Timer<void> >::Instance().SetTimeout(this, 100);
+
+	}
+
+	Timer<void>::TimerID m_TimeoutID;
 
 	void OnTimeout()
 	{
-		static int i = 0;
-		printf("i: %d\n", i);
-		++i;
+		printf("OnTimeout: %lu\n", time(NULL));
+		if(!IsConnected())
+		{
+			printf("[pool:%u] Reconnect timeout.\n", Pool::Instance().GetID());
+
+			PoolObject<EventScheduler>::Instance().UnRegister(this);
+			Disconnect();
+
+			Reconnect();
+			PoolObject<EventScheduler>::Instance().Register(this, EventScheduler::PollType::POLLOUT);
+			m_TimeoutID = PoolObject<Timer<void> >::Instance().SetTimeout(this, 100);
+		}
 	}
 };
 
@@ -96,8 +145,6 @@ class MyApp :
 public:
 	void InitializeData()
 	{
-		PoolObject<Timer<void, 1> >::Instance().SetTimeout(&m_tweetadsd, 100);
-
 		printf("initialize data ...\n");
 		uint64_t i = 0;
 		for(; i < 1000000; ++i)
@@ -116,8 +163,9 @@ public:
 
 	bool Initialize(int argc, char* argv[])
 	{
-		//if(!RegisterTcpServer(m_tweetadsd, "server_interface"))
-		if(!RegisterUdpServer<tweetadsd>("server_interface"))
+		if(argc == 2 && !RegisterTcpServer(m_tweetadsd, "server_interface"))
+			return false;
+		else if(argc == 3 && !RegisterTcpClient<Client>("client_interface"))
 			return false;
 
 		// other initialize

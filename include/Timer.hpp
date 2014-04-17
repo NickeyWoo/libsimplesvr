@@ -339,8 +339,7 @@ public:
 	typedef uint32_t TimerID;
 	typedef uint64_t TimeValue;
 
-	template<typename ServiceT>
-	TimerID SetTimeout(ServiceT* pService, int timeout, DataT data)
+	TimerID SetTimeout(boost::function<void(DataT)> callback, int timeout, DataT data)
 	{
 		++this->m_LastTimerId;
 
@@ -348,7 +347,7 @@ public:
 		pItem->TimerId = this->m_LastTimerId;
 		pItem->Timeval = this->GetTimeval() + (timeout / Interval);
 		pItem->Data = data;
-		pItem->Callback = boost::bind(&ServiceT::OnTimeout, pService, _1);
+		pItem->Callback = callback;
 
 		if(this->InternalAddTimerItem(pItem) != 0)
 		{
@@ -359,6 +358,12 @@ public:
 
 		this->m_TimerDataMap.insert(std::make_pair<TimerID, TimerItem<DataT, TimerID, TimeValue>*>(pItem->TimerId, pItem));
 		return pItem->TimerId;
+	}
+
+	template<typename ServiceT>
+	inline TimerID SetTimeout(ServiceT* pService, int timeout, DataT data)
+	{
+		return SetTimeout(boost::bind(&ServiceT::OnTimeout, pService, _1), timeout, data);
 	}
 
 	inline DataT* GetTimer(TimerID timerId)
@@ -379,14 +384,19 @@ public:
 	typedef uint64_t TimeValue;
 
 	template<typename ServiceT>
-	TimerID SetTimeout(ServiceT* pService, int timeout)
+	inline TimerID SetTimeout(ServiceT* pService, int timeout)
+	{
+		return SetTimeout(boost::bind(&ServiceT::OnTimeout, pService), timeout);
+	}
+
+	TimerID SetTimeout(boost::function<void()> callback, int timeout)
 	{
 		++this->m_LastTimerId;
 
 		TimerItem<void, TimerID, TimeValue>* pItem = new TimerItem<void, TimerID, TimeValue>();
 		pItem->TimerId = this->m_LastTimerId;
 		pItem->Timeval = this->GetTimeval() + (timeout / Interval);
-		pItem->Callback = boost::bind(&ServiceT::OnTimeout, pService);
+		pItem->Callback = callback;
 
 		if(this->InternalAddTimerItem(pItem) != 0)
 		{

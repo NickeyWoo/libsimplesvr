@@ -60,7 +60,7 @@ public:
 	}
 
 	template<typename ClientImplT>
-	bool ConnectToServer(const char* szConfigName)
+	bool RegisterTcpClient(const char* szConfigName)
 	{
 		TcpClientStartup<ClientImplT, std::string>& startup = PoolObject<TcpClientStartup<ClientImplT, std::string> >::Instance();
 		startup.m_Data = std::string(szConfigName);

@@ -35,16 +35,22 @@ public:
 		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.fd) < 0)
 		{
 			close(m_ServerInterface.m_Channel.fd);
+			m_ServerInterface.m_Channel.fd = -1;
 			return -1;
 		}
 #endif
+
 		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
 		m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);
+		m_ServerInterface.m_ErrorCallback = boost::bind(&ServerImplT::OnErrorable, this, _1);
+
+		memcpy(&m_ServerInterface.m_Channel.address, &addr, sizeof(sockaddr_in));
 
 		if(connect(m_ServerInterface.m_Channel.fd, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1 && 
 			errno != EINPROGRESS)
 		{
 			close(m_ServerInterface.m_Channel.fd);
+			m_ServerInterface.m_Channel.fd = -1;
 			return -1;
 		}
 		return 0;
@@ -54,14 +60,11 @@ public:
 	{
 		shutdown(m_ServerInterface.m_Channel.fd, SHUT_RDWR);
 		close(m_ServerInterface.m_Channel.fd);
+		m_ServerInterface.m_Channel.fd = -1;
 	}
 
 	void OnWriteable(ServerInterface<ChannelDataT>* pInterface)
 	{
-		socklen_t len = sizeof(sockaddr_in);
-		if(getpeername(pInterface->m_Channel.fd, (sockaddr*)&pInterface->m_Channel.address, &len) == -1)
-			throw InternalException((boost::format("[%s:%d][error] getpeername fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
-
 		EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 		if(scheduler.Update(this, EventScheduler::PollType::POLLIN) == -1)
 			throw InternalException((boost::format("[%s:%d][error] epoll_ctl update sockfd fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
@@ -84,6 +87,11 @@ public:
 
 		if(in.GetReadSize() == 0)
 		{
+			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
+			scheduler.UnRegister(this);
+
+			Disconnect();
+
 			LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
 									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
 									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
@@ -93,11 +101,6 @@ public:
 			LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
 									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
 									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
-
-			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-			scheduler.UnRegister(this);
-			shutdown(pInterface->m_Channel.fd, SHUT_RDWR);
-			close(pInterface->m_Channel.fd);
 		}
 		else
 		{
@@ -113,6 +116,24 @@ public:
 		}
 	}
 
+	void OnErrorable(ServerInterface<ChannelDataT>* pInterface)
+	{
+		EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
+		scheduler.UnRegister(this);
+
+		Disconnect();
+
+		LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
+								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
+								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+
+		this->OnError(pInterface->m_Channel);
+
+		LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
+								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
+								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+	}
+
 	// tcp client interface
 	virtual ~TcpClient()
 	{
@@ -122,12 +143,51 @@ public:
 	{
 	}
 
+	virtual void OnError(ChannelType& channel)
+	{
+	}
+
 	virtual void OnDisconnected(ChannelType& channel)
 	{
 	}
 
 	virtual void OnMessage(ChannelType& channel, IOBufferType& in)
 	{
+	}
+
+	bool IsConnected()
+	{
+		int fd = m_ServerInterface.m_Channel.fd;
+		if(fd == -1)
+			return false;
+
+		fd_set writefds;
+		FD_ZERO(&writefds);
+		FD_SET(fd, &writefds);
+
+		timeval tv;
+		bzero(&tv, sizeof(timeval));
+
+		int ready = select(fd + 1, NULL, &writefds, NULL, &tv);
+		if(ready == -1 || !FD_ISSET(fd, &writefds))
+			return false;
+
+		return true;
+	}
+
+	inline int Reconnect()
+	{
+		return Reconnect(m_ServerInterface.m_Channel.address);
+	}
+
+	int Reconnect(sockaddr_in& addr)
+	{
+		if(IsConnected())
+			return 0;
+
+		if(Connect(addr) != 0)
+			return -1;
+		return 0;
 	}
 
 	inline ssize_t Send(IOBufferType& out)

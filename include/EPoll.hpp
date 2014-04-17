@@ -26,7 +26,9 @@ public:
 
 	enum {
 		POLLIN = EPOLLIN,
-		POLLOUT = EPOLLOUT
+		POLLOUT = EPOLLOUT,
+		POLLERR = EPOLLERR,
+		POLLHUP = EPOLLHUP
 	};
 
 	int CreatePoll();
@@ -37,7 +39,10 @@ public:
 	inline int WaitEvent(ServerInterface<DataT>** ppInterface, uint32_t* pEvents, int timeout)
 	{
 		epoll_event ev;
+		bzero(&ev, sizeof(epoll_event));
+
 		int ret = epoll_wait(m_epfd, &ev, 1, timeout);
+
 		*ppInterface = (ServerInterface<DataT>*)ev.data.ptr;
 		*pEvents = ev.events;
 		return ret;

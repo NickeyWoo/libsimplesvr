@@ -179,7 +179,7 @@ public:
 		if(Pool::Instance().IsStartup())
 			Startup();
 		else
-			Pool::Instance().RegisterStartupCallback(boost::bind(&TimerBaseT::Startup, reinterpret_cast<TimerBaseT*>(this)), true);
+			Pool::Instance().RegisterStartupCallback(boost::bind(&TimerStartup<TimerBaseT, Interval>::Startup, this), true);
 	}
 
 	virtual ~TimerStartup()

@@ -103,7 +103,9 @@ public:
 			{
 				if(ready > 0)
 				{
-					if((events & PollT::POLLIN) == PollT::POLLIN)
+					if((events & PollT::POLLERR) == PollT::POLLERR)
+						pInterface->OnError();
+					else if((events & PollT::POLLIN) == PollT::POLLIN)
 						pInterface->OnReadable();
 					else if((events & PollT::POLLOUT) == PollT::POLLOUT)
 						pInterface->OnWriteable();
@@ -120,7 +122,8 @@ public:
 			}
 			catch(std::exception& error)
 			{
-				printf("%s\n", error.what());
+				// ignore error
+				printf("error:%s\n", error.what());
 			}
 		}
 	}
