@@ -20,13 +20,15 @@
 #include "hashtable.hpp"
 
 #include "Configure.hpp"
+#include "PoolObject.hpp"
 #include "Pool.hpp"
 #include "Channel.hpp"
 #include "IOBuffer.hpp"
+#include "Timer.hpp"
 #include "TcpServer.hpp"
 #include "UdpServer.hpp"
 #include "TcpClient.hpp"
-#include "Timer.hpp"
+#include "KeepConnectClient.hpp"
 #include "Application.hpp"
 
 struct TweetADS {
@@ -87,7 +89,7 @@ public:
 };
 
 class Client :
-	public TcpClient<Client>
+	public KeepConnectClient<Client>
 {
 public:
 
@@ -98,44 +100,16 @@ public:
 	void OnConnected(ChannelType& channel)
 	{
 		printf("[pool:%u][%s:%d] connected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
-
-		PoolObject<Timer<void> >::Instance().Clear(m_TimeoutID);
 	}
 
 	void OnError(ChannelType& channel)
 	{
 		printf("[pool:%u][%s:%d] error.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
-
-		PoolObject<Timer<void> >::Instance().Clear(m_TimeoutID);
-		m_TimeoutID = PoolObject<Timer<void> >::Instance().SetTimeout(this, 2000);
 	}
 
 	void OnDisconnected(ChannelType& channel)
 	{
 		printf("[pool:%u][%s:%d] disconnected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
-
-		Reconnect();
-		PoolObject<EventScheduler>::Instance().Register(this, EventScheduler::PollType::POLLOUT);
-		m_TimeoutID = PoolObject<Timer<void> >::Instance().SetTimeout(this, 100);
-
-	}
-
-	Timer<void>::TimerID m_TimeoutID;
-
-	void OnTimeout()
-	{
-		printf("OnTimeout: %lu\n", time(NULL));
-		if(!IsConnected())
-		{
-			printf("[pool:%u] Reconnect timeout.\n", Pool::Instance().GetID());
-
-			PoolObject<EventScheduler>::Instance().UnRegister(this);
-			Disconnect();
-
-			Reconnect();
-			PoolObject<EventScheduler>::Instance().Register(this, EventScheduler::PollType::POLLOUT);
-			m_TimeoutID = PoolObject<Timer<void> >::Instance().SetTimeout(this, 100);
-		}
 	}
 };
 

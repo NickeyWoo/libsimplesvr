@@ -40,9 +40,9 @@ public:
 		}
 #endif
 
-		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
-		m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);
-		m_ServerInterface.m_ErrorCallback = boost::bind(&ServerImplT::OnErrorable, this, _1);
+		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
+		m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
+		m_ServerInterface.m_ErrorCallback = boost::bind(&ServerImplT::OnErrorable, reinterpret_cast<ServerImplT*>(this), _1);
 
 		memcpy(&m_ServerInterface.m_Channel.address, &addr, sizeof(sockaddr_in));
 
@@ -198,5 +198,6 @@ public:
 
 	ServerInterface<ChannelDataT> m_ServerInterface;
 };
+
 
 #endif // define __TCPCLIENT_HPP__
