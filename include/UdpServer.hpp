@@ -48,8 +48,8 @@ public:
 			return -1;
 		}
 
-		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
-		m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);
+		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
+		m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
 		return 0;
 	}
 

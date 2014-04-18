@@ -60,7 +60,7 @@ public:
 			return -1;
 		}
 
-		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnAcceptable, this, _1);
+		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnAcceptable, reinterpret_cast<ServerImplT*>(this), _1);
 		return 0;
 	}
 
@@ -97,8 +97,8 @@ public:
 		pChannelInterface->m_Channel.fd = clifd;
 		memcpy(&pChannelInterface->m_Channel.address, &cliAddr, sizeof(sockaddr_in));
 
-		pChannelInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, this, _1);
-		pChannelInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, this, _1);
+		pChannelInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
+		pChannelInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
 
 		EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 		if(scheduler.Register(pChannelInterface, EventScheduler::PollType::POLLIN) == -1)
