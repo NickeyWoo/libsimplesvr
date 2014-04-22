@@ -15,8 +15,8 @@
 #include <boost/noncopyable.hpp>
 #include <sys/select.h>
 #include "Configure.hpp"
-#include "Log.hpp"
 #include "Pool.hpp"
+#include "Log.hpp"
 #include "Server.hpp"
 #include "UdpServer.hpp"
 #include "TcpServer.hpp"
@@ -36,9 +36,18 @@ public:
 	template<typename ServerImplT>
 	bool RegisterUdpServer(const char* szConfigName)
 	{
-		UdpServerStartup<ServerImplT, std::string>& startup = PoolObject<UdpServerStartup<ServerImplT, std::string> >::Instance();
-		startup.m_Data = std::string(szConfigName);
-		startup.Register();
+		std::map<std::string, std::string> stServerInterface = Configure::Get(szConfigName);
+		if(stServerInterface["port"].empty() || stServerInterface["ip"].empty())
+			return false;
+
+		sockaddr_in addr;
+		bzero(&addr, sizeof(sockaddr_in));
+		addr.sin_family = PF_INET;
+		addr.sin_port = atoi(stServerInterface["port"].c_str());
+		addr.sin_addr.s_addr = inet_addr(stServerInterface["ip"].c_str());
+
+		UdpServerStartup<ServerImplT, sockaddr_in>& startup = PoolObject<UdpServerStartup<ServerImplT, sockaddr_in> >::Instance();
+		startup.Register(addr);
 		return true;
 	}
 
@@ -46,6 +55,8 @@ public:
 	bool RegisterTcpServer(ServerImplT& server, const char* szConfigName)
 	{
 		std::map<std::string, std::string> stServerInterface = Configure::Get(szConfigName);
+		if(stServerInterface["port"].empty() || stServerInterface["ip"].empty())
+			return false;
 
 		sockaddr_in addr;
 		bzero(&addr, sizeof(sockaddr_in));
@@ -62,9 +73,18 @@ public:
 	template<typename ClientImplT>
 	bool RegisterTcpClient(const char* szConfigName)
 	{
-		TcpClientStartup<ClientImplT, std::string>& startup = PoolObject<TcpClientStartup<ClientImplT, std::string> >::Instance();
-		startup.m_Data = std::string(szConfigName);
-		startup.Register();
+		std::map<std::string, std::string> stClientInterface = Configure::Get(szConfigName);
+		if(stClientInterface["port"].empty() || stClientInterface["ip"].empty())
+			return false;
+
+		sockaddr_in addr;
+		bzero(&addr, sizeof(sockaddr_in));
+		addr.sin_family = PF_INET;
+		addr.sin_port = htons(atoi(stClientInterface["port"].c_str()));
+		addr.sin_addr.s_addr = inet_addr(stClientInterface["ip"].c_str());
+
+		TcpClientStartup<ClientImplT, sockaddr_in>& startup = PoolObject<TcpClientStartup<ClientImplT, sockaddr_in> >::Instance();
+		startup.Register(addr);
 		return true;
 	}
 
@@ -103,8 +123,9 @@ public:
 
 	void Run()
 	{
-		uint32_t concurrency = 1;
 		std::map<std::string, std::string> stGlobalConfig = Configure::Get("global");
+
+		uint32_t concurrency = 1;
 		if(!stGlobalConfig["concurrency"].empty())
 			concurrency = strtoul(stGlobalConfig["concurrency"].c_str(), NULL, 10);
 
@@ -160,8 +181,10 @@ public:
 		public boost::noncopyable
 	{
 	public:
-		void Register()
+		void Register(StartupDataT data)
 		{
+			m_Data = data;
+
 			if(Pool::Instance().IsStartup())
 				OnStartup();
 			else
@@ -170,23 +193,17 @@ public:
 
 		bool OnStartup()
 		{
-			std::map<std::string, std::string> stServerInterface = Configure::Get(m_Data);
-
-			sockaddr_in addr;
-			bzero(&addr, sizeof(sockaddr_in));
-			addr.sin_family = PF_INET;
-			addr.sin_port = htons(atoi(stServerInterface["port"].c_str()) + Pool::Instance().GetID());
-			addr.sin_addr.s_addr = inet_addr(stServerInterface["ip"].c_str());
-
-			ServerImplT& server = PoolObject<ServerImplT>::Instance();
-			if(server.Listen(addr) != 0)
+			m_Data.sin_port = htons(m_Data.sin_port + Pool::Instance().GetID());
+			if(m_Server.Listen(m_Data) != 0)
 				return false;
 
 			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-			return (scheduler.Register(&server, EventScheduler::PollType::POLLIN) == 0);
+			return (scheduler.Register(&m_Server, EventScheduler::PollType::POLLIN) == 0);
 		}
 	
+	private:
 		StartupDataT m_Data;
+		ServerImplT m_Server;
 	};
 
 	template<typename ClientImplT, typename StartupDataT>
@@ -194,8 +211,10 @@ public:
 		public boost::noncopyable
 	{
 	public:
-		void Register()
+		void Register(StartupDataT data)
 		{
+			m_Data = data;
+
 			if(Pool::Instance().IsStartup())
 				OnStartup();
 			else
@@ -204,24 +223,18 @@ public:
 
 		bool OnStartup()
 		{
-			std::map<std::string, std::string> stClientInterface = Configure::Get(m_Data);
-
-			sockaddr_in addr;
-			bzero(&addr, sizeof(sockaddr_in));
-			addr.sin_family = PF_INET;
-			addr.sin_port = htons(atoi(stClientInterface["port"].c_str()));
-			addr.sin_addr.s_addr = inet_addr(stClientInterface["ip"].c_str());
-
-			ClientImplT& server = PoolObject<ClientImplT>::Instance();
-			if(server.Connect(addr) != 0)
+			if(m_Client.Connect(m_Data) != 0)
 				return false;
 
 			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-			return (scheduler.Register(&server, EventScheduler::PollType::POLLOUT) == 0);
+			return (scheduler.Register(&m_Client, EventScheduler::PollType::POLLOUT) == 0);
 		}
 	
+	private:
 		StartupDataT m_Data;
+		ClientImplT m_Client;
 	};
+
 
 protected:
 	Application() :

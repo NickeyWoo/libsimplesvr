@@ -117,23 +117,6 @@ class MyApp :
 	public Application<MyApp>
 {
 public:
-	void InitializeData()
-	{
-		printf("initialize data ...\n");
-		uint64_t i = 0;
-		for(; i < 1000000; ++i)
-		{
-			TweetADS* pValue = g_HashTable.Hash(i, true);
-			if(!pValue)
-				break;
-
-			pValue->tweetid = i;
-			pValue->adnum = random() % 10;
-			for(uint16_t i = 0; i < pValue->adnum; ++i)
-				pValue->adbuffer[i] = random();
-		}
-		printf("initialize data complete(%lu).\n", i);
-	}
 
 	bool Initialize(int argc, char* argv[])
 	{
@@ -158,7 +141,6 @@ public:
 		g_HashTable = TimerHashTable<uint64_t, TweetADS>::LoadHashTable(sms, seed);
 		g_HashTable.SetDefaultTimeout((time_t)strtoul(stStorageConfig["timeout"].c_str(), NULL, 10));
 
-		InitializeData();
 		return true;
 	}
 

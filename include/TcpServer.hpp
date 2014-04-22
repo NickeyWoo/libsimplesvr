@@ -118,7 +118,6 @@ public:
 		LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] connected process.") %
 								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
 								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
-
 	}
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
