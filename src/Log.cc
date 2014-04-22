@@ -68,6 +68,8 @@ Log::~Log()
 bool Log::Initialize(std::string path)
 {
 	m_Path = path;
+	if(m_Path.empty())
+		m_Path = std::string(".");
 
 	std::string strLog = (boost::format("%s/runlog_%u_0.log") % m_Path % Pool::Instance().GetID()).str();
 	m_File = fopen(strLog.c_str(), "a");

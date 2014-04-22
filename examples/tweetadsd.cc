@@ -79,12 +79,12 @@ public:
 
 	void OnConnected(ChannelType& channel)
 	{
-		printf("[pool:%u][%s:%d] connected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+		LOG("[PID:%u][%s:%d] client connected.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
 
 	void OnDisconnected(ChannelType& channel)
 	{
-		printf("[pool:%u][%s:%d] disconnected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+		LOG("[PID:%u][%s:%d] disconnect client.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
 };
 
@@ -95,21 +95,24 @@ public:
 
 	void OnMessage(ChannelType& channel, IOBufferType& in)
 	{
+		std::string inbuf;
+		in.Dump(inbuf);
+		LOG("[PID:%u][%s:%d] say: %s", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port), inbuf.c_str());
 	}
 
 	void OnConnected(ChannelType& channel)
 	{
-		printf("[pool:%u][%s:%d] connected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+		LOG("[PID:%u][%s:%d] connect server success.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
 
 	void OnError(ChannelType& channel)
 	{
-		printf("[pool:%u][%s:%d] error.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+		LOG("[PID:%u][%s:%d] connect server error.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
 
 	void OnDisconnected(ChannelType& channel)
 	{
-		printf("[pool:%u][%s:%d] disconnected.\n", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+		LOG("[PID:%u][%s:%d] disconnect server.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
 };
 
