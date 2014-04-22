@@ -124,6 +124,7 @@ public:
 	void Run()
 	{
 		std::map<std::string, std::string> stGlobalConfig = Configure::Get("global");
+		m_LogStartup.Register(stGlobalConfig["logs"]);
 
 		uint32_t concurrency = 1;
 		if(!stGlobalConfig["concurrency"].empty())
@@ -235,6 +236,23 @@ public:
 		ClientImplT m_Client;
 	};
 
+	class LogStartup
+	{
+	public:
+		void Register(std::string path)
+		{
+			m_LogPath = path;
+			Pool::Instance().RegisterStartupCallback(boost::bind(&LogStartup::OnStartup, this));
+		}
+
+		bool OnStartup()
+		{
+			return PoolObject<Log>::Instance().Initialize(m_LogPath);
+		}
+
+	private:
+		std::string m_LogPath;
+	};
 
 protected:
 	Application() :
@@ -246,6 +264,7 @@ protected:
 
 	int				m_pid;
 	int				m_lock;
+	LogStartup		m_LogStartup;
 };
 
 #define AppRun(app)																			\
