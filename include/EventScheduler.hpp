@@ -20,6 +20,7 @@
 #include <boost/bind.hpp>
 #include "EPoll.hpp"
 #include "Clock.hpp"
+#include "Log.hpp"
 
 template<typename PollT>
 class EventSchedulerImpl :
@@ -123,7 +124,7 @@ public:
 			catch(std::exception& error)
 			{
 				// ignore error
-				printf("error:%s\n", error.what());
+				LOG("unknown error: %s\n", error.what());
 			}
 		}
 	}
