@@ -13,6 +13,7 @@
 #include "IOBuffer.hpp"
 #include "Server.hpp"
 #include "EventScheduler.hpp"
+#include "Clock.hpp"
 
 template<typename ServerImplT, typename ChannelDataT = void, size_t IOBufferSize = IOBUFFER_DEFAULT_SIZE>
 class TcpClient

@@ -13,6 +13,7 @@
 #include "IOBuffer.hpp"
 #include "Server.hpp"
 #include "EventScheduler.hpp"
+#include "Clock.hpp"
 
 #define DEFAULT_SOCK_BACKLOG	100
 

@@ -16,6 +16,7 @@
 #include "Channel.hpp"
 #include "Server.hpp"
 #include "IOBuffer.hpp"
+#include "Clock.hpp"
 
 template<typename ServerImplT, typename ChannelDataT = void, size_t IOBufferSize = IOBUFFER_DEFAULT_SIZE>
 class UdpServer
