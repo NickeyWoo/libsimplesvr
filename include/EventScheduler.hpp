@@ -124,7 +124,7 @@ public:
 			catch(std::exception& error)
 			{
 				// ignore error
-				LOG("unknown error: %s\n", error.what());
+				LOG("unknown error: %s", error.what());
 			}
 		}
 	}
