@@ -46,7 +46,7 @@ public:
 		addr.sin_port = atoi(stServerInterface["port"].c_str());
 		addr.sin_addr.s_addr = inet_addr(stServerInterface["ip"].c_str());
 
-		UdpServerStartup<ServerImplT, sockaddr_in>& startup = PoolObject<UdpServerStartup<ServerImplT, sockaddr_in> >::Instance();
+		static UdpServerStartup<ServerImplT, sockaddr_in> startup;
 		startup.Register(addr);
 		return true;
 	}
@@ -83,7 +83,7 @@ public:
 		addr.sin_port = htons(atoi(stClientInterface["port"].c_str()));
 		addr.sin_addr.s_addr = inet_addr(stClientInterface["ip"].c_str());
 
-		TcpClientStartup<ClientImplT, sockaddr_in>& startup = PoolObject<TcpClientStartup<ClientImplT, sockaddr_in> >::Instance();
+		static TcpClientStartup<ClientImplT, sockaddr_in> startup;
 		startup.Register(addr);
 		return true;
 	}
@@ -195,16 +195,15 @@ public:
 		bool OnStartup()
 		{
 			m_Data.sin_port = htons(m_Data.sin_port + Pool::Instance().GetID());
-			if(m_Server.Listen(m_Data) != 0)
+			if(PoolObject<ServerImplT>::Instance().Listen(m_Data) != 0)
 				return false;
 
 			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-			return (scheduler.Register(&m_Server, EventScheduler::PollType::POLLIN) == 0);
+			return (scheduler.Register(&PoolObject<ServerImplT>::Instance(), EventScheduler::PollType::POLLIN) == 0);
 		}
 	
 	private:
 		StartupDataT m_Data;
-		ServerImplT m_Server;
 	};
 
 	template<typename ClientImplT, typename StartupDataT>
@@ -224,16 +223,15 @@ public:
 
 		bool OnStartup()
 		{
-			if(m_Client.Connect(m_Data) != 0)
+			if(PoolObject<ClientImplT>::Instance().Connect(m_Data) != 0)
 				return false;
 
 			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-			return (scheduler.Register(&m_Client, EventScheduler::PollType::POLLOUT) == 0);
+			return (scheduler.Register(&PoolObject<ClientImplT>::Instance(), EventScheduler::PollType::POLLOUT) == 0);
 		}
 	
 	private:
 		StartupDataT m_Data;
-		ClientImplT m_Client;
 	};
 
 	class LogStartup
