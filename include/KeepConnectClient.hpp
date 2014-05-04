@@ -77,9 +77,9 @@ private:
 
 template<typename ServerImplT, typename ChannelDataT = void, 
 			typename PolicyT = KeepConnectPolicy<KEEPCONNECTCLIENT_MAXRECONNECTINTERVAL, KEEPCONNECTCLIENT_CONNECTTIMEOUT>,
-			int32_t TimerInterval = TIMER_DEFAULT_INTERVAL, size_t IOBufferSize = IOBUFFER_DEFAULT_SIZE>
+			int32_t TimerInterval = TIMER_DEFAULT_INTERVAL>
 class KeepConnectClient	:
-	public TcpClient<ServerImplT, ChannelDataT, IOBufferSize>
+	public TcpClient<ServerImplT, ChannelDataT>
 {
 public:
 
@@ -105,7 +105,8 @@ public:
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
 	{
-		typename ServerImplT::IOBufferType in;
+		char buffer[65535];
+		IOBuffer in(buffer, 65535);
 		pInterface->m_Channel >> in;
 
 		if(in.GetReadSize() == 0)
@@ -128,7 +129,7 @@ public:
 			m_Policy.OnDisconnected();
 			m_TimeoutID = PoolObject<Timer<void, TimerInterval> >::Instance().SetTimeout(
 								boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, PolicyT,
-											TimerInterval, IOBufferSize>::OnConnectTimeout, this), 
+											TimerInterval>::OnConnectTimeout, this), 
 								m_Policy.GetTimeout());
 		}
 		else
@@ -169,7 +170,7 @@ public:
 		m_Policy.OnError();
 		m_TimeoutID = PoolObject<Timer<void> >::Instance().SetTimeout(
 							boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, PolicyT,
-										TimerInterval, IOBufferSize>::OnConnectTimeout, this), 
+										TimerInterval>::OnConnectTimeout, this), 
 							m_Policy.GetTimeout());
 	}
 
@@ -186,7 +187,7 @@ public:
 			m_Policy.OnTimeout();
 			m_TimeoutID = PoolObject<Timer<void, TimerInterval> >::Instance().SetTimeout(
 							boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, PolicyT,
-										TimerInterval, IOBufferSize>::OnConnectTimeout, this), 
+										TimerInterval>::OnConnectTimeout, this), 
 							m_Policy.GetTimeout());
 		}
 	}

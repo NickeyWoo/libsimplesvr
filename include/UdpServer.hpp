@@ -18,12 +18,11 @@
 #include "IOBuffer.hpp"
 #include "Clock.hpp"
 
-template<typename ServerImplT, typename ChannelDataT = void, size_t IOBufferSize = IOBUFFER_DEFAULT_SIZE>
+template<typename ServerImplT, typename ChannelDataT = void>
 class UdpServer
 {
 public:
 	typedef Channel<ChannelDataT> ChannelType;
-	typedef IOBuffer<IOBufferSize> IOBufferType;
 
 	int Listen(sockaddr_in& addr)
 	{
@@ -60,7 +59,9 @@ public:
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
 	{
-		IOBufferType in;
+		char buffer[65535];
+		IOBuffer in(buffer, 65535);
+
 		pInterface->m_Channel >> in;
 
 		LDEBUG_CLOCK_TRACE((boost::format("being udp [%s:%d] message process.") %
@@ -79,11 +80,11 @@ public:
 	{
 	}
 
-	virtual void OnMessage(ChannelType& channel, IOBufferType& in)
+	virtual void OnMessage(ChannelType& channel, IOBuffer& in)
 	{
 	}
 
-	inline ssize_t Send(IOBufferType& out, sockaddr_in& target)
+	inline ssize_t Send(IOBuffer& out, sockaddr_in& target)
 	{
 		return sendto(m_ServerInterface.m_Channel.fd, 
 					out.m_Buffer, out.GetWriteSize(), 0,

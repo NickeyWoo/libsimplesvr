@@ -48,10 +48,10 @@ class tweetadsd :
 	public TcpServer<tweetadsd>
 {
 public:
-	void OnMessage(ChannelType& channel, IOBufferType& in)
+	void OnMessage(ChannelType& channel, IOBuffer& in)
 	{
 	/*
-		IOBufferType out;
+		IOBuffer out;
 
 		Request request;
 		bzero(&request, sizeof(Request));
@@ -93,7 +93,7 @@ class Client :
 {
 public:
 
-	void OnMessage(ChannelType& channel, IOBufferType& in)
+	void OnMessage(ChannelType& channel, IOBuffer& in)
 	{
 		std::string inbuf;
 		in.Dump(inbuf);

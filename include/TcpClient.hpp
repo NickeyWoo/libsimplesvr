@@ -15,12 +15,11 @@
 #include "EventScheduler.hpp"
 #include "Clock.hpp"
 
-template<typename ServerImplT, typename ChannelDataT = void, size_t IOBufferSize = IOBUFFER_DEFAULT_SIZE>
+template<typename ServerImplT, typename ChannelDataT = void>
 class TcpClient
 {
 public:
 	typedef Channel<ChannelDataT> ChannelType;
-	typedef IOBuffer<IOBufferSize> IOBufferType;
 
 	int Connect(sockaddr_in& addr)
 	{
@@ -83,7 +82,8 @@ public:
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
 	{
-		IOBufferType in;
+		char buffer[65535];
+		IOBuffer in(buffer, 65535);
 		pInterface->m_Channel >> in;
 
 		if(in.GetReadSize() == 0)
@@ -152,7 +152,7 @@ public:
 	{
 	}
 
-	virtual void OnMessage(ChannelType& channel, IOBufferType& in)
+	virtual void OnMessage(ChannelType& channel, IOBuffer& in)
 	{
 	}
 
@@ -191,7 +191,7 @@ public:
 		return 0;
 	}
 
-	inline ssize_t Send(IOBufferType& out)
+	inline ssize_t Send(IOBuffer& out)
 	{
 		return send(m_ServerInterface.m_Channel.fd, 
 					out.m_Buffer, out.GetWriteSize(), 0);

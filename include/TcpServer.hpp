@@ -17,12 +17,11 @@
 
 #define DEFAULT_SOCK_BACKLOG	100
 
-template<typename ServerImplT, typename ChannelDataT = void, size_t IOBufferSize = IOBUFFER_DEFAULT_SIZE>
+template<typename ServerImplT, typename ChannelDataT = void>
 class TcpServer
 {
 public:
 	typedef Channel<ChannelDataT> ChannelType;
-	typedef IOBuffer<IOBufferSize> IOBufferType;
 
 	int Listen(sockaddr_in& addr)
 	{
@@ -123,7 +122,8 @@ public:
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
 	{
-		IOBufferType in;
+		char buffer[65535];
+		IOBuffer in(buffer, 65535);
 		pInterface->m_Channel >> in;
 
 		if(in.GetReadSize() == 0)
@@ -175,7 +175,7 @@ public:
 	{
 	}
 
-	virtual void OnMessage(ChannelType& channel, IOBufferType& in)
+	virtual void OnMessage(ChannelType& channel, IOBuffer& in)
 	{
 	}
 
