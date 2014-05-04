@@ -8,6 +8,7 @@
 #ifndef __EPOLL_HPP__
 #define __EPOLL_HPP__
 
+#include <sys/epoll.h>
 #include <boost/noncopyable.hpp>
 #include "Server.hpp"
 
