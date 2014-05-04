@@ -269,13 +269,8 @@ IOBuffer& operator >> (IOBuffer& io, std::string& val)
 		throw OverflowIOException((boost::format("[%s:%d][error] no space to read.") % __FILE__ % __LINE__).str().c_str());
 
 	io.m_ReadPosition += sizeof(uint16_t);
-
-	char* str = (char*)malloc(len);
-	memcpy(str, (io.m_Buffer + io.m_ReadPosition), len);
+	val = std::string(io.m_Buffer + io.m_ReadPosition, len);
 	io.m_ReadPosition += len;
-
-	val = std::string(str, len);
-	free(str);
 	return io;
 }
 
@@ -373,7 +368,7 @@ IOBuffer& operator << (IOBuffer& io, std::string val)
 	uint16_t len = htons(val.length());
 	*((uint16_t*)(io.m_Buffer + io.m_WritePosition)) = len;
 	io.m_WritePosition += sizeof(uint16_t);
-	strcpy(io.m_Buffer + io.m_WritePosition, val.c_str());
+	memcpy(io.m_Buffer + io.m_WritePosition, val.c_str(), val.length());
 	io.m_WritePosition += val.length();
 	return io;
 }
