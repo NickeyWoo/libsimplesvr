@@ -194,7 +194,7 @@ public:
 	inline ssize_t Send(IOBuffer& out)
 	{
 		return send(m_ServerInterface.m_Channel.fd, 
-					out.m_Buffer, out.GetWriteSize(), 0);
+					out.GetWriteBuffer(), out.GetWriteSize(), 0);
 	}
 
 	ServerInterface<ChannelDataT> m_ServerInterface;

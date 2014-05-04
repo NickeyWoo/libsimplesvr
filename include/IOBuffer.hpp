@@ -63,6 +63,23 @@ public:
 	ssize_t Read(char* buffer, size_t size, size_t pos) const;
 	void Dump(std::string& str);
 
+	inline void Dump()
+	{
+		std::string strHexDump;
+		Dump(strHexDump);
+		printf("%s", strHexDump.c_str());
+	}
+
+	inline char* GetWriteBuffer()
+	{
+		return m_Buffer;
+	}
+
+	inline char* GetReadBuffer()
+	{
+		return &m_Buffer[m_ReadPosition];
+	}
+
 	inline size_t GetReadSize()
 	{
 		return m_AvailableReadSize;
@@ -73,11 +90,28 @@ public:
 		return m_WritePosition;
 	}
 
-	inline void Dump()
+	inline size_t GetReadPosition()
 	{
-		std::string strHexDump;
-		Dump(strHexDump);
-		printf("%s", strHexDump.c_str());
+		return m_ReadPosition;
+	}
+
+	inline size_t GetWritePosition()
+	{
+		return m_WritePosition;
+	}
+
+	inline void ReadSeek(ssize_t offset)
+	{
+		m_ReadPosition += offset;
+		if(m_ReadPosition > m_AvailableReadSize)
+			m_ReadPosition = m_AvailableReadSize;
+	}
+
+	inline void WriteSeek(ssize_t offset)
+	{
+		m_WritePosition += offset;
+		if(m_WritePosition > m_BufferSize)
+			m_WritePosition = m_BufferSize;
 	}
 
 	bool m_NeedFree;

@@ -110,7 +110,7 @@ ssize_t IOBuffer::Read(char* buffer, size_t size, size_t pos) const
 void IOBuffer::Dump(std::string& str)
 {
 	size_t len = m_AvailableReadSize;
-	if(m_AvailableReadSize == 0)
+	if(m_AvailableReadSize < m_WritePosition)
 		len = m_WritePosition;
 	if(len == 0)
 	{
