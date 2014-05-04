@@ -15,7 +15,7 @@ clean:
 	rm -rf objs/*.o
 	rm -rf $(TARGET)
 
-../bin/tweetadsd: objs/tweetadsd.o $(OBJS) ../libs/libsimplesvr.a
+../bin/tweetadsd: objs/tweetadsd.o $(OBJS) ../lib/libsimplesvr.a
 	$(CXX) $^ -o $@ $(LIBS)
 
 
