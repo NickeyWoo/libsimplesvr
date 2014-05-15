@@ -76,14 +76,39 @@ struct TimerItem<void, IdT, TimeValueT>
 	}
 };
 
+template<typename TimerBaseT, int32_t Interval>
+class TimerStartup :
+	public boost::noncopyable
+{
+public:
+	TimerStartup()
+	{
+		if(Pool::Instance().IsStartup())
+			Startup();
+		else
+			Pool::Instance().RegisterStartupCallback(boost::bind(&TimerStartup<TimerBaseT, Interval>::Startup, this), true);
+	}
+
+	virtual ~TimerStartup()
+	{
+	}
+
+	bool Startup()
+	{
+		EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
+
+		int timeout = scheduler.GetIdleTimeout();
+		if(timeout == -1 || timeout > Interval)
+			scheduler.SetIdleTimeout(Interval);
+
+		scheduler.RegisterLoopCallback(boost::bind(&TimerBaseT::CheckTimer, reinterpret_cast<TimerBaseT*>(this)));
+		return true;
+	}
+};
+
 template<typename DataT, typename IdT, typename TimeValueT, int32_t Interval>
 class TimerBase :
-#ifdef TIMER_NEED_TIMERSTARTUP
 	public TimerStartup<TimerBase<DataT, IdT, TimeValueT, Interval>, Interval>
-#else
-	#define TIMER_NO_TIMERSTARTUP
-	public boost::noncopyable
-#endif
 {
 protected:
 	IdT m_LastTimerId;

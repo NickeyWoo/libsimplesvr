@@ -34,6 +34,11 @@ public:
 		m_IdleCallbackList.push_back(callback);
 	}
 
+	inline void RegisterLoopCallback(boost::function<void(void)> callback)
+	{
+		m_LoopCallbackList.push_back(callback);
+	}
+
 	inline int GetIdleTimeout()
 	{
 		return m_IdleTimeout;
@@ -120,6 +125,12 @@ public:
 						(*iter)();
 					}
 				}
+				for(std::list<boost::function<void(void)> >::iterator iter = m_LoopCallbackList.begin();
+					iter != m_LoopCallbackList.end();
+					++iter)
+				{
+					(*iter)();
+				}
 			}
 			catch(std::exception& error)
 			{
@@ -140,6 +151,7 @@ protected:
 	int m_IdleTimeout;
 	PollT m_Poll;
 	std::list<boost::function<void(void)> > m_IdleCallbackList;
+	std::list<boost::function<void(void)> > m_LoopCallbackList;
 };
 
 typedef EventSchedulerImpl<EPoll> EventScheduler;
