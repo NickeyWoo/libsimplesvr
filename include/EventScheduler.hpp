@@ -97,6 +97,70 @@ public:
 		return m_Poll.EventCtl(PollT::ADD, events, pServerInterface->m_Channel.fd, pServerInterface);
 	}
 
+	template<typename ServiceT>
+	inline bool Wait(ServiceT* pService, int events, timeval* timeout = NULL)
+	{
+		return Wait(&pService->m_ServerInterface, events, timeout);
+	}
+
+	struct WaitInfo {
+		fd_set* readfds;
+		fd_set* writefds;
+		fd_set* errorfds;
+	};
+
+	template<typename ChannelDataT>
+	bool Wait(ServerInterface<ChannelDataT>* pServerInterface, int events, timeval* timeout = NULL)
+	{
+		int waitfd = pServerInterface->m_Channel.fd;
+
+		WaitInfo info;
+		bzero(&info, sizeof(WaitInfo));
+
+		fd_set rfds, wfds, efds;
+		if((events & PollT::POLLERR) == PollT::POLLERR)
+		{
+			FD_ZERO(&efds);
+			FD_SET(waitfd, &efds);
+			info.errorfds = &efds;
+		}
+
+		if((events & PollT::POLLIN) == PollT::POLLIN)
+		{
+			FD_ZERO(&wfds);
+			FD_SET(waitfd, &wfds);
+			info.writefds = &wfds;
+		}
+
+		if((events & PollT::POLLOUT) == PollT::POLLOUT)
+		{
+			FD_ZERO(&rfds);
+			FD_SET(waitfd, &rfds);
+			info.readfds = &rfds;
+		}
+
+		int retval = select(waitfd + 1,
+							info.readfds,
+							info.writefds,
+							info.errorfds,
+							timeout);
+		if(retval == -1 || retval == 0)
+			return false;
+		else
+		{
+			if(info.errorfds && FD_ISSET(waitfd, info.errorfds))
+				pServerInterface.OnError();
+
+			if(info.readfds && FD_ISSET(waitfd, info.readfds))
+				pServerInterface.OnReadable();
+
+			if(info.writefds && FD_ISSET(waitfd, info.writefds))
+				pServerInterface.OnWriteable();
+
+			return true;
+		}
+	}
+
 	void Dispatch()
 	{
 		LDEBUG_CLOCK_TRACE("start event dispatch loop...");
