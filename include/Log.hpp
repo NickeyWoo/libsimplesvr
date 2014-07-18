@@ -22,8 +22,8 @@ extern const char* safe_strerror(int error);
 		printf("[%s:%d]", __FILE__, __LINE__);									\
 		printf(__VA_ARGS__);													\
 		printf("\n");															\
-		PoolObject<Log>::Instance().Write(__FILE__, __LINE__, __VA_ARGS__); 	\
-		PoolObject<Log>::Instance().Flush();
+		PoolObject< ::Log>::Instance().Write(__FILE__, __LINE__, __VA_ARGS__); 	\
+		PoolObject< ::Log>::Instance().Flush();
 
 	#define TRACE_LOG(...)														\
 		printf("[%s:%d]", __FILE__, __LINE__);									\
@@ -32,8 +32,8 @@ extern const char* safe_strerror(int error);
 
 #else
 	#define LOG(...)															\
-		PoolObject<Log>::Instance().Write(__FILE__, __LINE__, __VA_ARGS__); 	\
-		PoolObject<Log>::Instance().Flush();
+		PoolObject< ::Log>::Instance().Write(__FILE__, __LINE__, __VA_ARGS__); 	\
+		PoolObject< ::Log>::Instance().Flush();
 
 	#define TRACE_LOG(...)
 #endif
