@@ -149,13 +149,13 @@ public:
 		else
 		{
 			if(info.errorfds && FD_ISSET(waitfd, info.errorfds))
-				pServerInterface.OnError();
+				pServerInterface->OnError();
 
 			if(info.readfds && FD_ISSET(waitfd, info.readfds))
-				pServerInterface.OnReadable();
+				pServerInterface->OnReadable();
 
 			if(info.writefds && FD_ISSET(waitfd, info.writefds))
-				pServerInterface.OnWriteable();
+				pServerInterface->OnWriteable();
 
 			return true;
 		}
