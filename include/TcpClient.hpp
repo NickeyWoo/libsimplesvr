@@ -197,6 +197,17 @@ public:
 					out.GetWriteBuffer(), out.GetWriteSize(), 0);
 	}
 
+	ssize_t Recv(IOBuffer& in)
+	{
+		m_ServerInterface.m_Channel >> in;
+		return in.GetReadSize();
+	}
+
+	inline int Shutdown(int how)
+	{
+		return shutdown(m_ServerInterface.m_Channel.fd, how);
+	}
+
 	ServerInterface<ChannelDataT> m_ServerInterface;
 };
 

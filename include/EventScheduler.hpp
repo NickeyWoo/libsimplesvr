@@ -82,7 +82,11 @@ public:
 	template<typename ChannelDataT>
 	inline int Update(ServerInterface<ChannelDataT>* pServerInterface, int events)
 	{
-		return m_Poll.EventCtl(PollT::MOD, events, pServerInterface->m_Channel.fd, pServerInterface);
+		int iRet = -1;
+		if(-1 == (iRet = m_Poll.EventCtl(PollT::MOD, events, pServerInterface->m_Channel.fd, pServerInterface)) && errno == ENOENT)
+			return Register(pServerInterface, events);
+		else
+			return iRet;
 	}
 
 	template<typename ServiceT>
@@ -98,7 +102,7 @@ public:
 	}
 
 	template<typename ServiceT>
-	inline bool Wait(ServiceT* pService, int events, timeval* timeout = NULL)
+	inline int Wait(ServiceT* pService, int events, timeval* timeout = NULL)
 	{
 		return Wait(&pService->m_ServerInterface, events, timeout);
 	}
@@ -110,7 +114,7 @@ public:
 	};
 
 	template<typename ChannelDataT>
-	bool Wait(ServerInterface<ChannelDataT>* pServerInterface, int events, timeval* timeout = NULL)
+	int Wait(ServerInterface<ChannelDataT>* pServerInterface, int events, timeval* timeout = NULL)
 	{
 		int waitfd = pServerInterface->m_Channel.fd;
 
@@ -139,26 +143,11 @@ public:
 			info.readfds = &rfds;
 		}
 
-		int retval = select(waitfd + 1,
-							info.readfds,
-							info.writefds,
-							info.errorfds,
-							timeout);
-		if(retval == -1 || retval == 0)
-			return false;
-		else
-		{
-			if(info.errorfds && FD_ISSET(waitfd, info.errorfds))
-				pServerInterface->OnError();
-
-			if(info.readfds && FD_ISSET(waitfd, info.readfds))
-				pServerInterface->OnReadable();
-
-			if(info.writefds && FD_ISSET(waitfd, info.writefds))
-				pServerInterface->OnWriteable();
-
-			return true;
-		}
+		return select(waitfd + 1,
+						info.readfds,
+						info.writefds,
+						info.errorfds,
+						timeout);
 	}
 
 	void Dispatch()
