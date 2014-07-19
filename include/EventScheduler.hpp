@@ -125,14 +125,14 @@ public:
 			info.errorfds = &efds;
 		}
 
-		if((events & PollT::POLLIN) == PollT::POLLIN)
+		if((events & PollT::POLLOUT) == PollT::POLLOUT)
 		{
 			FD_ZERO(&wfds);
 			FD_SET(waitfd, &wfds);
 			info.writefds = &wfds;
 		}
 
-		if((events & PollT::POLLOUT) == PollT::POLLOUT)
+		if((events & PollT::POLLIN) == PollT::POLLIN)
 		{
 			FD_ZERO(&rfds);
 			FD_SET(waitfd, &rfds);
