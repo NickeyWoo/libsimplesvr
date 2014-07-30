@@ -1,7 +1,7 @@
 /*++
  *
  * Simple Server Library
- * Author: NickWu
+ * Author: NickeyWoo
  * Date: 2014-04-17
  *
 --*/
