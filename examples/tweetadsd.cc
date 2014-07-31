@@ -29,6 +29,7 @@
 #include "UdpServer.hpp"
 #include "TcpClient.hpp"
 #include "KeepConnectClient.hpp"
+#include "LoadBalance.hpp"
 #include "Application.hpp"
 
 struct TweetADS {
@@ -123,6 +124,16 @@ public:
 
 	bool Initialize(int argc, char* argv[])
 	{
+		LoadBalance<RoutePolicy> lb;
+		if(!lb.LoadConfigure("gateway.conf"))
+		{
+			printf("error: initialize load balance fail.\n");
+			return false;
+		}
+
+		printf("sizeof(sockaddr_in): %lu\n", sizeof(sockaddr_in));
+		return false;
+
 		if(argc == 2 && !RegisterTcpServer(m_tweetadsd, "server_interface"))
 			return false;
 		else if(argc == 3 && !RegisterTcpClient<Client>("client_interface"))

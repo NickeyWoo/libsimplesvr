@@ -62,7 +62,7 @@ int Configure::Load(const char* szFile)
 	boost::algorithm::split(vLines, sConfigContent, boost::algorithm::is_any_of("\n"));
 	BOOST_FOREACH(std::string sLine, vLines)
 	{
-		sLine = regex_replace(sLine, stCommentExpression, "");
+		sLine = boost::regex_replace(sLine, stCommentExpression, "");
 		boost::algorithm::trim(sLine);
 		if(sLine.empty())
 			continue;
