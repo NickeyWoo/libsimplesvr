@@ -156,8 +156,9 @@ public:
 		return true;
 	}
 
-	void Route(sockaddr_in& addr)
+	void Route(sockaddr_in* pstAddress)
 	{
+		if(!pstAddress) return;
 		time_t now = time(NULL);
 
 		// reset quotas
@@ -188,7 +189,7 @@ public:
 		{
 			if(dwSeed < iter->second.dwRealQuotas)
 			{
-				memcpy(&addr, &iter->second.stAddress, sizeof(sockaddr_in));
+				memcpy(pstAddress, &iter->second.stAddress, sizeof(sockaddr_in));
 
 				++iter->second.dwSendCount;
 				--iter->second.dwRealQuotas;
@@ -199,12 +200,13 @@ public:
 			dwSeed -= iter->second.dwRealQuotas;
 		}
 
-		memcpy(&addr, &m_stServicesMap.begin()->second.stAddress, sizeof(sockaddr_in));
+		memcpy(pstAddress, &m_stServicesMap.begin()->second.stAddress, sizeof(sockaddr_in));
 	}
 
-	void Failure(sockaddr_in& addr)
+	void Failure(sockaddr_in* pstAddress)
 	{
-		PointDictionary::iterator iter = m_stServicesMap.find(addr);
+		if(!pstAddress) return;
+		PointDictionary::iterator iter = m_stServicesMap.find(*pstAddress);
 		if(iter == m_stServicesMap.end())
 			return;
 
@@ -213,9 +215,10 @@ public:
 		iter->second.dwCurrentQuotas = 1;
 	}
 
-	void Success(sockaddr_in& addr)
+	void Success(sockaddr_in* pstAddress)
 	{
-		PointDictionary::iterator iter = m_stServicesMap.find(addr);
+		if(!pstAddress) return;
+		PointDictionary::iterator iter = m_stServicesMap.find(*pstAddress);
 		if(iter == m_stServicesMap.end())
 			return;
 
