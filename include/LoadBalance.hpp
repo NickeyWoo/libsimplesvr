@@ -209,19 +209,7 @@ public:
 		iter->second.dwRealQuotas = 0;
 		iter->second.dwCurrentQuotas = 1;
 	}
-/*
-	void Except(sockaddr_in* pstAddress)
-	{
-		if(!pstAddress) return;
-		PointDictionary::iterator iter = m_stServicesMap.find(*pstAddress);
-		if(iter == m_stServicesMap.end())
-			return;
 
-		m_dwTotalQuotas -= iter->second.dwRealQuotas;
-		iter->second.dwRealQuotas = 0;
-		iter->second.dwCurrentQuotas = 1;
-	}
-*/
 	void Success(sockaddr_in* pstAddress)
 	{
 		if(!pstAddress) return;
