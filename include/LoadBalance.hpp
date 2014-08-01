@@ -40,11 +40,6 @@ struct ServicePoint
 class RoutePolicy
 {
 public:
-	inline uint32_t Accuracy()
-	{
-		return 10000;
-	}
-
 	inline uint32_t ResetTime()
 	{
 		return 30;
@@ -141,7 +136,7 @@ public:
 				point.stAddress.sin_addr.s_addr = inet_addr(what[1].str().c_str());
 				point.stAddress.sin_port = htons(strtoul(what[2].str().c_str(), NULL, 10));
 
-				point.dwMaxQuotas = strtoul(what[3].str().c_str(), NULL, 10) * m_Policy.Accuracy();
+				point.dwMaxQuotas = strtoul(what[3].str().c_str(), NULL, 10);
 				point.dwCurrentQuotas = point.dwMaxQuotas;
 				point.dwRealQuotas = point.dwMaxQuotas;
 				m_dwTotalQuotas += point.dwMaxQuotas;
