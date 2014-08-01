@@ -131,7 +131,27 @@ public:
 			return false;
 		}
 
-		printf("sizeof(sockaddr_in): %lu\n", sizeof(sockaddr_in));
+		std::map<uint16_t, uint64_t> m;
+		int count = atoi(argv[2]);
+		while(count > 0)
+		{
+			sockaddr_in addr;
+			bzero(&addr, sizeof(sockaddr_in));
+
+			lb.Route(&addr);
+
+			++m[ntohs(addr.sin_port)];
+
+			lb.Success(&addr);
+			--count;
+		}
+		lb.ShowInformation();
+
+		for(std::map<uint16_t, uint64_t>::iterator iter = m.begin(); iter != m.end(); ++iter)
+		{
+			printf("%d: %lu\n", iter->first, iter->second);
+		}
+
 		return false;
 
 		if(argc == 2 && !RegisterTcpServer(m_tweetadsd, "server_interface"))

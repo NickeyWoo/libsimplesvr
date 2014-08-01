@@ -151,6 +151,26 @@ public:
 		return true;
 	}
 
+	void ShowInformation()
+	{
+		printf("Total Quotas: %u\n", m_dwTotalQuotas);
+		printf("Timestamp: %lu\n", m_LastTimestamp);
+		for(PointDictionary::iterator iter = m_stServicesMap.begin();
+			iter != m_stServicesMap.end();
+			++iter)
+		{
+			printf("------------------------------------------------------------------------------------------------------------------\n");
+			sockaddr_in addr = iter->second.stAddress;
+			printf("[%s:%d] ", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+			printf("Max Quotas: %u ", iter->second.dwMaxQuotas);
+			printf("Current Quotas: %u ", iter->second.dwCurrentQuotas);
+			printf("Real Quotas: %u ", iter->second.dwRealQuotas);
+			printf("Send Count: %u ", iter->second.dwSendCount);
+			printf("Recv Count: %u\n", iter->second.dwRecvCount);
+		}
+		printf("------------------------------------------------------------------------------------------------------------------\n");
+	}
+
 	void Route(sockaddr_in* pstAddress)
 	{
 		if(!pstAddress) return;
