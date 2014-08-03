@@ -42,7 +42,7 @@ class RoutePolicy
 public:
 	inline uint32_t ResetTime()
 	{
-		return 30;
+		return 10;
 	}
 
 	inline void Reset(ServicePoint& point)
@@ -202,7 +202,7 @@ public:
 			iter != m_stServicesMap.end();
 			++iter)
 		{
-			if(dwSeed < iter->second.dwRealQuotas)
+			if(dwSeed <= iter->second.dwRealQuotas)
 			{
 				memcpy(pstAddress, &iter->second.stAddress, sizeof(sockaddr_in));
 
@@ -214,8 +214,6 @@ public:
 			}
 			dwSeed -= iter->second.dwRealQuotas;
 		}
-
-		memcpy(pstAddress, &m_stServicesMap.begin()->second.stAddress, sizeof(sockaddr_in));
 	}
 
 	void Failure(sockaddr_in* pstAddress)

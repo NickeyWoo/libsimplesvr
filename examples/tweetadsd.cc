@@ -142,8 +142,17 @@ public:
 
 			++m[ntohs(addr.sin_port)];
 
-			lb.Success(&addr);
+			if(count == 20000)
+			{
+				addr.sin_port = htons(5600);
+				lb.Failure(&addr);
+				printf("Fail: %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+				lb.ShowInformation();
+			}
+			else
+				lb.Success(&addr);
 			--count;
+			usleep(1000);
 		}
 		lb.ShowInformation();
 
