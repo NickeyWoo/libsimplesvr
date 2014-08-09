@@ -88,6 +88,20 @@ public:
 	{
 	}
 
+	void AddServicePoint(sockaddr_in* pAddr, uint32_t dwQuotas)
+	{
+		ServicePoint point;
+		bzero(&point, sizeof(ServicePoint));
+
+		memcpy(&point.stAddress, pAddr, sizeof(sockaddr_in));
+		point.dwMaxQuotas = dwQuotas;
+		point.dwCurrentQuotas = dwQuotas;
+		point.dwRealQuotas = dwQuotas;
+		m_dwTotalQuotas += dwQuotas;
+
+		m_stServicesMap.insert(std::make_pair(point.stAddress, point));
+	}
+
 	bool LoadConfigure(const char* szFile)
 	{
 		int fd = open(szFile, O_RDONLY);

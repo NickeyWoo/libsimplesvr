@@ -131,6 +131,10 @@ public:
 			return false;
 		}
 
+		sockaddr_in myAddr;
+		bzero(&myAddr, sizeof(sockaddr_in));
+		lb.AddServicePoint(&myAddr, 1000);
+
 		std::map<uint16_t, uint64_t> m;
 		int count = atoi(argv[2]);
 		while(count > 0)
