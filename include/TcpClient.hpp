@@ -202,7 +202,7 @@ public:
 					out.GetWriteBuffer(), out.GetWriteSize(), 0);
 	}
 
-	ssize_t Recv(IOBuffer& in)
+	inline ssize_t Recv(IOBuffer& in)
 	{
 		m_ServerInterface.m_Channel >> in;
 		return in.GetReadSize();

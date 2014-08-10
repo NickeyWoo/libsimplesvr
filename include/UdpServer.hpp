@@ -98,6 +98,12 @@ public:
 					(const sockaddr*)&target, sizeof(sockaddr_in));
 	}
 
+	inline ssize_t Recv(IOBuffer& in)
+	{
+		m_ServerInterface->m_Channel >> in;
+		return in.GetReadSize();
+	}
+
 	ServerInterface<ChannelDataT> m_ServerInterface;
 };
 
