@@ -209,8 +209,9 @@ public:
 				m_LastTimestamp = now;
 		}
 
+		// Weighted Round Robin Balancing
 		srand(now);
-		uint32_t dwSeed = round((double)m_dwTotalQuotas * rand() / RAND_MAX);
+		uint32_t dwSeed = floor((double)(m_dwTotalQuotas + 1) * rand() / RAND_MAX);
 
 		for(PointDictionary::iterator iter = m_stServicesMap.begin();
 			iter != m_stServicesMap.end();
