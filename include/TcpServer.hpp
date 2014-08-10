@@ -25,42 +25,23 @@ public:
 
 	int Listen(sockaddr_in& addr)
 	{
-#ifdef __USE_GNU
-		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
 		if(m_ServerInterface.m_Channel.fd == -1)
 			return -1;
-#else
-		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
-		if(m_ServerInterface.m_Channel.fd == -1)
-			return -1;
-
-		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.fd) < 0)
-		{
-			close(m_ServerInterface.m_Channel.fd);
-			return -1;
-		}
-#endif
-
-		int reuse = 1;
-		if(-1 == setsockopt(m_ServerInterface.m_Channel.fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)))
-		{
-			close(m_ServerInterface.m_Channel.fd);
-			return -1;
-		}
 
 		if(-1 == bind(m_ServerInterface.m_Channel.fd, (sockaddr*)&addr, sizeof(sockaddr_in)))
 		{
 			close(m_ServerInterface.m_Channel.fd);
+			m_ServerInterface.m_Channel.fd = -1;
 			return -1;
 		}
 
 		if(-1 == listen(m_ServerInterface.m_Channel.fd, DEFAULT_SOCK_BACKLOG))
 		{
 			close(m_ServerInterface.m_Channel.fd);
+			m_ServerInterface.m_Channel.fd = -1;
 			return -1;
 		}
 
-		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnAcceptable, reinterpret_cast<ServerImplT*>(this), _1);
 		return 0;
 	}
 
@@ -163,6 +144,36 @@ public:
 	}
 
 	// udp server interface
+	TcpServer()
+	{
+#ifdef __USE_GNU
+		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+		if(m_ServerInterface.m_Channel.fd == -1)
+			return;
+#else
+		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
+		if(m_ServerInterface.m_Channel.fd == -1)
+			return;
+
+		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.fd) < 0)
+		{
+			close(m_ServerInterface.m_Channel.fd);
+			m_ServerInterface.m_Channel.fd = -1;
+			return;
+		}
+#endif
+
+		int reuse = 1;
+		if(-1 == setsockopt(m_ServerInterface.m_Channel.fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)))
+		{
+			close(m_ServerInterface.m_Channel.fd);
+			m_ServerInterface.m_Channel.fd = -1;
+			return;
+		}
+
+		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnAcceptable, reinterpret_cast<ServerImplT*>(this), _1);
+	}
+
 	virtual ~TcpServer()
 	{
 	}

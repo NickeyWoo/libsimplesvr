@@ -23,29 +23,10 @@ public:
 
 	int Connect(sockaddr_in& addr)
 	{
-#ifdef __USE_GNU
-		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
 		if(m_ServerInterface.m_Channel.fd == -1)
 			return -1;
-#else
-		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
-		if(m_ServerInterface.m_Channel.fd == -1)
-			return -1;
-
-		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.fd) < 0)
-		{
-			close(m_ServerInterface.m_Channel.fd);
-			m_ServerInterface.m_Channel.fd = -1;
-			return -1;
-		}
-#endif
-
-		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
-		m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
-		m_ServerInterface.m_ErrorCallback = boost::bind(&ServerImplT::OnErrorable, reinterpret_cast<ServerImplT*>(this), _1);
 
 		memcpy(&m_ServerInterface.m_Channel.address, &addr, sizeof(sockaddr_in));
-
 		if(connect(m_ServerInterface.m_Channel.fd, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1 && 
 			errno != EINPROGRESS)
 		{
@@ -136,6 +117,30 @@ public:
 	}
 
 	// tcp client interface
+	TcpClient()
+	{
+#ifdef __USE_GNU
+		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+		if(m_ServerInterface.m_Channel.fd == -1)
+			return;
+#else
+		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
+		if(m_ServerInterface.m_Channel.fd == -1)
+			return;
+
+		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.fd) < 0)
+		{
+			close(m_ServerInterface.m_Channel.fd);
+			m_ServerInterface.m_Channel.fd = -1;
+			return;
+		}
+#endif
+
+		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
+		m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
+		m_ServerInterface.m_ErrorCallback = boost::bind(&ServerImplT::OnErrorable, reinterpret_cast<ServerImplT*>(this), _1);
+	}
+
 	virtual ~TcpClient()
 	{
 	}

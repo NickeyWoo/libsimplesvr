@@ -117,6 +117,15 @@ public:
 	}
 };
 
+class ABCDServer :
+	public UdpServer<ABCDServer>
+{
+public:
+	void OnMessage(ChannelType& channel, IOBuffer& in)
+	{
+	}
+};
+
 class MyApp :
 	public Application<MyApp>
 {
@@ -124,6 +133,13 @@ public:
 
 	bool Initialize(int argc, char* argv[])
 	{
+		ABCDServer a;
+		printf("a.fd: %d\n", a.m_ServerInterface.m_Channel.fd);
+		ABCDServer b = a;
+		printf("b.fd: %d\n", b.m_ServerInterface.m_Channel.fd);
+		
+		return false;
+
 		LoadBalance<RoutePolicy> lb;
 		if(!lb.LoadConfigure("gateway.conf"))
 		{

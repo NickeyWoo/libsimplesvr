@@ -26,30 +26,15 @@ public:
 
 	int Listen(sockaddr_in& addr)
 	{
-#ifdef __USE_GNU
-		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_DGRAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
 		if(m_ServerInterface.m_Channel.fd == -1)
 			return -1;
-#else
-		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_DGRAM, 0);
-		if(m_ServerInterface.m_Channel.fd == -1)
-			return -1;
-
-		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.fd) < 0)
-		{
-			close(m_ServerInterface.m_Channel.fd);
-			return -1;
-		}
-#endif
 
 		if(-1 == bind(m_ServerInterface.m_Channel.fd, (sockaddr*)&addr, sizeof(sockaddr_in)))
 		{
 			close(m_ServerInterface.m_Channel.fd);
+			m_ServerInterface.m_Channel.fd = -1;
 			return -1;
 		}
-
-		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
-		m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
 		return 0;
 	}
 
@@ -76,6 +61,28 @@ public:
 	}
 
 	// udp server interface
+	UdpServer()
+	{
+#ifdef __USE_GNU
+		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_DGRAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+		if(m_ServerInterface.m_Channel.fd == -1)
+			return;
+#else
+		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_DGRAM, 0);
+		if(m_ServerInterface.m_Channel.fd == -1)
+			return;
+
+		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.fd) < 0)
+		{
+			close(m_ServerInterface.m_Channel.fd);
+			m_ServerInterface.m_Channel.fd = -1;
+			return;
+		}
+#endif
+		m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
+		m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
+	}
+
 	virtual ~UdpServer()
 	{
 	}
