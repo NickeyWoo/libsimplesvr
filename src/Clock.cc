@@ -1,3 +1,10 @@
+/*++
+ *
+ * Simple Server Library
+ * Author: NickeyWoo
+ * Date: 2014-03-19
+ *
+--*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

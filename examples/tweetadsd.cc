@@ -30,6 +30,7 @@
 #include "TcpClient.hpp"
 #include "KeepConnectClient.hpp"
 #include "LoadBalance.hpp"
+#include "ConnectionPool.hpp"
 #include "Application.hpp"
 
 struct TweetADS {
@@ -45,14 +46,14 @@ struct Request {
 };
 
 class tweetadsd :
-//	public UdpServer<tweetadsd>
 	public TcpServer<tweetadsd>
 {
 public:
 	void OnMessage(ChannelType& channel, IOBuffer& in)
 	{
-	/*
-		IOBuffer out;
+		char buffer[65535];
+		bzero(buffer, 65535);
+		IOBuffer out(buffer, 65535);
 
 		Request request;
 		bzero(&request, sizeof(Request));
@@ -75,7 +76,6 @@ public:
 
 		PoolObject<Timer<void> >::Instance().SetTimeout(this, 100);
 		channel << out;
-	*/
 	}
 
 	void OnConnected(ChannelType& channel)
@@ -87,41 +87,8 @@ public:
 	{
 		LOG("[PID:%u][%s:%d] disconnect client.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
 	}
-};
 
-class Client :
-	public KeepConnectClient<Client>
-{
-public:
-
-	void OnMessage(ChannelType& channel, IOBuffer& in)
-	{
-		std::string inbuf;
-		in.Dump(inbuf);
-		LOG("[PID:%u][%s:%d] say: %s", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port), inbuf.c_str());
-	}
-
-	void OnConnected(ChannelType& channel)
-	{
-		LOG("[PID:%u][%s:%d] connect server success.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
-	}
-
-	void OnError(ChannelType& channel)
-	{
-		LOG("[PID:%u][%s:%d] connect server error.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
-	}
-
-	void OnDisconnected(ChannelType& channel)
-	{
-		LOG("[PID:%u][%s:%d] disconnect server.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
-	}
-};
-
-class ABCDServer :
-	public UdpServer<ABCDServer>
-{
-public:
-	void OnMessage(ChannelType& channel, IOBuffer& in)
+	void OnTimeout()
 	{
 	}
 };
@@ -133,55 +100,9 @@ public:
 
 	bool Initialize(int argc, char* argv[])
 	{
-		ABCDServer a;
-		printf("a.fd: %d\n", a.m_ServerInterface.m_Channel.fd);
-		ABCDServer b = a;
-		printf("b.fd: %d\n", b.m_ServerInterface.m_Channel.fd);
-		
-		return false;
-
-		LoadBalance<RoutePolicy> lb;
-		if(!lb.LoadConfigure("gateway.conf"))
-		{
-			printf("error: initialize load balance fail.\n");
-			return false;
-		}
-
-		std::map<uint16_t, uint64_t> m;
-		int count = atoi(argv[2]);
-		while(count > 0)
-		{
-			sockaddr_in addr;
-			bzero(&addr, sizeof(sockaddr_in));
-
-			lb.Route(&addr);
-
-			++m[ntohs(addr.sin_port)];
-
-			if(count == 20000)
-			{
-				addr.sin_port = htons(5600);
-				lb.Failure(&addr);
-				printf("Fail: %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-				lb.ShowInformation();
-			}
-			else
-				lb.Success(&addr);
-			--count;
-			usleep(1000);
-		}
-		lb.ShowInformation();
-
-		for(std::map<uint16_t, uint64_t>::iterator iter = m.begin(); iter != m.end(); ++iter)
-		{
-			printf("%d: %lu\n", iter->first, iter->second);
-		}
-
 		return false;
 
 		if(argc == 2 && !RegisterTcpServer(m_tweetadsd, "server_interface"))
-			return false;
-		else if(argc == 3 && !RegisterTcpClient<Client>("client_interface"))
 			return false;
 
 		// other initialize
