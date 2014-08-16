@@ -192,7 +192,7 @@ public:
 
 	void Disconnect(ChannelType& channel)
 	{
-		ServerInterface<ChannelDataT>* pChannelInterface = channel->GetInterface();
+		ServerInterface<ChannelDataT>* pChannelInterface = channel.GetInterface();
 		PoolObject<EventScheduler>::Instance().UnRegister(pChannelInterface);
 		shutdown(pChannelInterface->m_Channel.Socket, SHUT_RDWR);
 		close(pChannelInterface->m_Channel.Socket);
