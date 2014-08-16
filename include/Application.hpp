@@ -105,7 +105,7 @@ public:
 		if(timeout == 0)
 			return true;
 
-		int fd = client.m_ServerInterface.m_Channel.fd;
+		int fd = client.m_ServerInterface.m_Channel.Socket;
 
 		fd_set writefds;
 		FD_ZERO(&writefds);

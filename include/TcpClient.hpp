@@ -23,15 +23,15 @@ public:
 
 	int Connect(sockaddr_in& addr)
 	{
-		if(m_ServerInterface.m_Channel.fd == -1)
+		if(m_ServerInterface.m_Channel.Socket == -1)
 			return -1;
 
-		memcpy(&m_ServerInterface.m_Channel.address, &addr, sizeof(sockaddr_in));
-		if(connect(m_ServerInterface.m_Channel.fd, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1 && 
+		memcpy(&m_ServerInterface.m_Channel.Address, &addr, sizeof(sockaddr_in));
+		if(connect(m_ServerInterface.m_Channel.Socket, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1 && 
 			errno != EINPROGRESS)
 		{
-			close(m_ServerInterface.m_Channel.fd);
-			m_ServerInterface.m_Channel.fd = -1;
+			close(m_ServerInterface.m_Channel.Socket);
+			m_ServerInterface.m_Channel.Socket = -1;
 			return -1;
 		}
 		return 0;
@@ -39,9 +39,9 @@ public:
 
 	void Disconnect()
 	{
-		shutdown(m_ServerInterface.m_Channel.fd, SHUT_RDWR);
-		close(m_ServerInterface.m_Channel.fd);
-		m_ServerInterface.m_Channel.fd = -1;
+		shutdown(m_ServerInterface.m_Channel.Socket, SHUT_RDWR);
+		close(m_ServerInterface.m_Channel.Socket);
+		m_ServerInterface.m_Channel.Socket = -1;
 	}
 
 	void OnWriteable(ServerInterface<ChannelDataT>* pInterface)
@@ -51,14 +51,14 @@ public:
 			throw InternalException((boost::format("[%s:%d][error] epoll_ctl update sockfd fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
 
 		LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] connected process.") %
-								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 		this->OnConnected(pInterface->m_Channel);
 
 		LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] connected process.") %
-								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 	}
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
@@ -75,26 +75,26 @@ public:
 			Disconnect();
 
 			LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
-									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+									inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+									ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 			this->OnDisconnected(pInterface->m_Channel);
 
 			LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
-									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+									inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+									ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 		}
 		else
 		{
 			LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] message process.") % 
-									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+									inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+									ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 			this->OnMessage(pInterface->m_Channel, in);
 
 			LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] message process.") %
-									inet_ntoa(pInterface->m_Channel.address.sin_addr) % 
-									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+									inet_ntoa(pInterface->m_Channel.Address.sin_addr) % 
+									ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 		}
 	}
 
@@ -106,32 +106,32 @@ public:
 		Disconnect();
 
 		LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
-								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 		this->OnError(pInterface->m_Channel);
 
 		LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
-								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 	}
 
 	// tcp client interface
 	TcpClient()
 	{
 #ifdef __USE_GNU
-		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
-		if(m_ServerInterface.m_Channel.fd == -1)
+		m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+		if(m_ServerInterface.m_Channel.Socket == -1)
 			return;
 #else
-		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
-		if(m_ServerInterface.m_Channel.fd == -1)
+		m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM, 0);
+		if(m_ServerInterface.m_Channel.Socket == -1)
 			return;
 
-		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.fd) < 0)
+		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.Socket) < 0)
 		{
-			close(m_ServerInterface.m_Channel.fd);
-			m_ServerInterface.m_Channel.fd = -1;
+			close(m_ServerInterface.m_Channel.Socket);
+			m_ServerInterface.m_Channel.Socket = -1;
 			return;
 		}
 #endif
@@ -163,7 +163,7 @@ public:
 
 	bool IsConnected()
 	{
-		int fd = m_ServerInterface.m_Channel.fd;
+		int fd = m_ServerInterface.m_Channel.Socket;
 		if(fd == -1)
 			return false;
 
@@ -183,7 +183,7 @@ public:
 
 	inline int Reconnect()
 	{
-		return Reconnect(m_ServerInterface.m_Channel.address);
+		return Reconnect(m_ServerInterface.m_Channel.Address);
 	}
 
 	int Reconnect(sockaddr_in& addr)
@@ -198,7 +198,7 @@ public:
 
 	inline ssize_t Send(IOBuffer& out)
 	{
-		return send(m_ServerInterface.m_Channel.fd, 
+		return send(m_ServerInterface.m_Channel.Socket, 
 					out.GetWriteBuffer(), out.GetWriteSize(), 0);
 	}
 
@@ -210,7 +210,7 @@ public:
 
 	inline int Shutdown(int how)
 	{
-		return shutdown(m_ServerInterface.m_Channel.fd, how);
+		return shutdown(m_ServerInterface.m_Channel.Socket, how);
 	}
 
 	ServerInterface<ChannelDataT> m_ServerInterface;

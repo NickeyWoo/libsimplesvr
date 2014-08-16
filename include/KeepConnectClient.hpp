@@ -85,42 +85,15 @@ public:
 
 	int Connect(sockaddr_in& addr)
 	{
-#ifdef __USE_GNU
-		this->m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
-		if(this->m_ServerInterface.m_Channel.fd == -1)
-			return -1;
-#else
-		this->m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_STREAM, 0);
-		if(this->m_ServerInterface.m_Channel.fd == -1)
+		if(this->m_ServerInterface.m_Channel.Socket == -1)
 			return -1;
 
-		if(SetNonblockAndCloexecFd(this->m_ServerInterface.m_Channel.fd) < 0)
-		{
-			close(this->m_ServerInterface.m_Channel.fd);
-			this->m_ServerInterface.m_Channel.fd = -1;
-			return -1;
-		}
-#endif
-
-		int keepalive = 1;
-		if(setsockopt(this->m_ServerInterface.m_Channel.fd, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(int)) == -1)
-		{
-			close(this->m_ServerInterface.m_Channel.fd);
-			this->m_ServerInterface.m_Channel.fd = -1;
-			return -1;
-		}
-
-		this->m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
-		this->m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
-		this->m_ServerInterface.m_ErrorCallback = boost::bind(&ServerImplT::OnErrorable, reinterpret_cast<ServerImplT*>(this), _1);
-
-		memcpy(&this->m_ServerInterface.m_Channel.address, &addr, sizeof(sockaddr_in));
-
-		if(connect(this->m_ServerInterface.m_Channel.fd, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1 && 
+		memcpy(&this->m_ServerInterface.m_Channel.Address, &addr, sizeof(sockaddr_in));
+		if(connect(this->m_ServerInterface.m_Channel.Socket, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1 && 
 			errno != EINPROGRESS)
 		{
-			close(this->m_ServerInterface.m_Channel.fd);
-			this->m_ServerInterface.m_Channel.fd = -1;
+			close(this->m_ServerInterface.m_Channel.Socket);
+			this->m_ServerInterface.m_Channel.Socket = -1;
 			return -1;
 		}
 		return 0;
@@ -136,14 +109,14 @@ public:
 		m_Policy.OnConnected();
 
 		LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] connected process.") %
-								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 		this->OnConnected(pInterface->m_Channel);
 
 		LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] connected process.") %
-								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 	}
 
 	void OnReadable(ServerInterface<ChannelDataT>* pInterface)
@@ -160,14 +133,14 @@ public:
 			this->Disconnect();
 
 			LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
-									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+									inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+									ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 			this->OnDisconnected(pInterface->m_Channel);
 
 			LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
-									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+									inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+									ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 			m_Policy.OnDisconnected();
 			m_TimeoutID = PoolObject<Timer<void, TimerInterval> >::Instance().SetTimeout(
@@ -180,14 +153,14 @@ public:
 			m_Policy.OnMessage();
 
 			LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] message process.") % 
-									inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+									inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+									ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 			this->OnMessage(pInterface->m_Channel, in);
 
 			LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] message process.") %
-									inet_ntoa(pInterface->m_Channel.address.sin_addr) % 
-									ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+									inet_ntoa(pInterface->m_Channel.Address.sin_addr) % 
+									ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 		}
 	}
 
@@ -199,14 +172,14 @@ public:
 		this->Disconnect();
 
 		LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
-								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 		this->OnError(pInterface->m_Channel);
 
 		LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
-								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 		PoolObject<Timer<void, TimerInterval> >::Instance().Clear(m_TimeoutID);
 
@@ -237,6 +210,16 @@ public:
 
 	KeepConnectClient()
 	{
+		if(this->m_ServerInterface.m_Channel.Socket == -1)
+			return;
+
+		int keepalive = 1;
+		if(setsockopt(this->m_ServerInterface.m_Channel.Socket, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(int)) == -1)
+		{
+			close(this->m_ServerInterface.m_Channel.Socket);
+			this->m_ServerInterface.m_Channel.Socket = -1;
+			return;
+		}
 	}
 
 protected:

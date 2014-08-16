@@ -8,25 +8,42 @@
 #ifndef __CHANNEL_HPP__
 #define __CHANNEL_HPP__
 
+#include <boost/function.hpp>
+
+template<typename T>
+class ServerInterface;
+
 template<typename ChannelDataT>
 struct Channel {
-	int				fd;
-	sockaddr_in		address;
-	ChannelDataT	data;
+	int				Socket;
+	sockaddr_in		Address;
+	ChannelDataT	Data;
 
 	Channel() :
-		fd(-1)
+		Socket(-1)
 	{
+	}
+
+	ServerInterface<ChannelDataT>* GetInterface()
+	{
+		char* pInterface = reinterpret_cast<char*>(this);
+		return reinterpret_cast<ServerInterface<ChannelDataT>*>(pInterface - 3 * sizeof(boost::function<void(ServerInterface<ChannelDataT>*)>));
 	}
 };
 template<>
 struct Channel<void> {
-	int 			fd;
-	sockaddr_in		address;
+	int 			Socket;
+	sockaddr_in		Address;
 
 	Channel() :
-		fd(-1)
+		Socket(-1)
 	{
+	}
+
+	ServerInterface<void>* GetInterface()
+	{
+		char* pInterface = reinterpret_cast<char*>(this);
+		return reinterpret_cast<ServerInterface<void>*>(pInterface - 3 * sizeof(boost::function<void(ServerInterface<void>*)>));
 	}
 };
 

@@ -53,7 +53,6 @@ public:
 	boost::function<void(ServerInterface<ChannelDataT>*)> m_ReadableCallback;
 	boost::function<void(ServerInterface<ChannelDataT>*)> m_WriteableCallback;
 	boost::function<void(ServerInterface<ChannelDataT>*)> m_ErrorCallback;
-
 	Channel<ChannelDataT> m_Channel;
 };
 

@@ -151,7 +151,7 @@ Channel<ChannelDataT>& operator >> (Channel<ChannelDataT>& channel, IOBuffer& io
 	msghdr msg;
 	bzero(&msg, sizeof(msghdr));
 
-	msg.msg_name = &channel.address;
+	msg.msg_name = &channel.Address;
 	msg.msg_namelen = sizeof(sockaddr_in);
 
 	iovec iov;
@@ -161,7 +161,7 @@ Channel<ChannelDataT>& operator >> (Channel<ChannelDataT>& channel, IOBuffer& io
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 
-	ssize_t recvSize = recvmsg(channel.fd, &msg, 0);
+	ssize_t recvSize = recvmsg(channel.Socket, &msg, 0);
 	if(recvSize == -1)
 		throw InternalException((boost::format("[%s:%d][error] recvmsg fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
 
@@ -185,7 +185,7 @@ Channel<ChannelDataT>& operator << (Channel<ChannelDataT>& channel, IOBuffer& io
 	msghdr msg;
 	bzero(&msg, sizeof(msghdr));
 
-	msg.msg_name = &channel.address;
+	msg.msg_name = &channel.Address;
 	msg.msg_namelen = sizeof(sockaddr_in);
 
 	iovec iov;
@@ -195,7 +195,7 @@ Channel<ChannelDataT>& operator << (Channel<ChannelDataT>& channel, IOBuffer& io
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 
-	ssize_t sendSize = sendmsg(channel.fd, &msg, 0);
+	ssize_t sendSize = sendmsg(channel.Socket, &msg, 0);
 	if(sendSize == -1)
 		throw InternalException((boost::format("[%s:%d][error] sendmsg fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
 

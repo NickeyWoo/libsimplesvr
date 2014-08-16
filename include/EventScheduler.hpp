@@ -70,7 +70,7 @@ public:
 	template<typename ChannelDataT>
 	inline int UnRegister(ServerInterface<ChannelDataT>* pServerInterface)
 	{
-		return m_Poll.EventCtl(PollT::DEL, 0, pServerInterface->m_Channel.fd, NULL);
+		return m_Poll.EventCtl(PollT::DEL, 0, pServerInterface->m_Channel.Socket, NULL);
 	}
 
 	template<typename ServiceT>
@@ -83,7 +83,7 @@ public:
 	inline int Update(ServerInterface<ChannelDataT>* pServerInterface, int events)
 	{
 		int iRet = -1;
-		if(-1 == (iRet = m_Poll.EventCtl(PollT::MOD, events, pServerInterface->m_Channel.fd, pServerInterface)) && errno == ENOENT)
+		if(-1 == (iRet = m_Poll.EventCtl(PollT::MOD, events, pServerInterface->m_Channel.Socket, pServerInterface)) && errno == ENOENT)
 			return Register(pServerInterface, events);
 		else
 			return iRet;
@@ -98,7 +98,7 @@ public:
 	template<typename ChannelDataT>
 	inline int Register(ServerInterface<ChannelDataT>* pServerInterface, int events)
 	{
-		return m_Poll.EventCtl(PollT::ADD, events, pServerInterface->m_Channel.fd, pServerInterface);
+		return m_Poll.EventCtl(PollT::ADD, events, pServerInterface->m_Channel.Socket, pServerInterface);
 	}
 
 	template<typename ServiceT>
@@ -116,7 +116,7 @@ public:
 	template<typename ChannelDataT>
 	int Wait(ServerInterface<ChannelDataT>* pServerInterface, int events, timeval* timeout = NULL)
 	{
-		int waitfd = pServerInterface->m_Channel.fd;
+		int waitfd = pServerInterface->m_Channel.Socket;
 
 		WaitInfo info;
 		bzero(&info, sizeof(WaitInfo));

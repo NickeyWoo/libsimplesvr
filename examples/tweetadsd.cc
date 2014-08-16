@@ -45,12 +45,19 @@ struct Request {
 	uint64_t tweetid;
 };
 
+struct Status
+{
+	uint64_t a;
+	uint64_t b;
+};
+
 class tweetadsd :
-	public TcpServer<tweetadsd>
+	public TcpServer<tweetadsd, Status>
 {
 public:
 	void OnMessage(ChannelType& channel, IOBuffer& in)
 	{
+		LOG("[PID:%u][%s:%d] client connected.", Pool::Instance().GetID(), inet_ntoa(channel.Address.sin_addr), ntohs(channel.Address.sin_port));
 		char buffer[65535];
 		bzero(buffer, 65535);
 		IOBuffer out(buffer, 65535);
@@ -80,12 +87,12 @@ public:
 
 	void OnConnected(ChannelType& channel)
 	{
-		LOG("[PID:%u][%s:%d] client connected.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+		LOG("[PID:%u][%s:%d] client connected.", Pool::Instance().GetID(), inet_ntoa(channel.Address.sin_addr), ntohs(channel.Address.sin_port));
 	}
 
 	void OnDisconnected(ChannelType& channel)
 	{
-		LOG("[PID:%u][%s:%d] disconnect client.", Pool::Instance().GetID(), inet_ntoa(channel.address.sin_addr), ntohs(channel.address.sin_port));
+		LOG("[PID:%u][%s:%d] disconnect client.", Pool::Instance().GetID(), inet_ntoa(channel.Address.sin_addr), ntohs(channel.Address.sin_port));
 	}
 
 	void OnTimeout()
@@ -100,9 +107,7 @@ public:
 
 	bool Initialize(int argc, char* argv[])
 	{
-		return false;
-
-		if(argc == 2 && !RegisterTcpServer(m_tweetadsd, "server_interface"))
+		if(!RegisterTcpServer(m_tweetadsd, "server_interface"))
 			return false;
 
 		// other initialize

@@ -26,13 +26,13 @@ public:
 
 	int Listen(sockaddr_in& addr)
 	{
-		if(m_ServerInterface.m_Channel.fd == -1)
+		if(m_ServerInterface.m_Channel.Socket == -1)
 			return -1;
 
-		if(-1 == bind(m_ServerInterface.m_Channel.fd, (sockaddr*)&addr, sizeof(sockaddr_in)))
+		if(-1 == bind(m_ServerInterface.m_Channel.Socket, (sockaddr*)&addr, sizeof(sockaddr_in)))
 		{
-			close(m_ServerInterface.m_Channel.fd);
-			m_ServerInterface.m_Channel.fd = -1;
+			close(m_ServerInterface.m_Channel.Socket);
+			m_ServerInterface.m_Channel.Socket = -1;
 			return -1;
 		}
 		return 0;
@@ -50,32 +50,32 @@ public:
 		pInterface->m_Channel >> in;
 
 		LDEBUG_CLOCK_TRACE((boost::format("being udp [%s:%d] message process.") %
-								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
 		this->OnMessage(pInterface->m_Channel, in);
 
 		LDEBUG_CLOCK_TRACE((boost::format("end udp [%s:%d] message process.") %
-								inet_ntoa(pInterface->m_Channel.address.sin_addr) %
-								ntohs(pInterface->m_Channel.address.sin_port)).str().c_str());
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 	}
 
 	// udp server interface
 	UdpServer()
 	{
 #ifdef __USE_GNU
-		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_DGRAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
-		if(m_ServerInterface.m_Channel.fd == -1)
+		m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_DGRAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+		if(m_ServerInterface.m_Channel.Socket == -1)
 			return;
 #else
-		m_ServerInterface.m_Channel.fd = socket(PF_INET, SOCK_DGRAM, 0);
-		if(m_ServerInterface.m_Channel.fd == -1)
+		m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_DGRAM, 0);
+		if(m_ServerInterface.m_Channel.Socket == -1)
 			return;
 
-		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.fd) < 0)
+		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.Socket) < 0)
 		{
-			close(m_ServerInterface.m_Channel.fd);
-			m_ServerInterface.m_Channel.fd = -1;
+			close(m_ServerInterface.m_Channel.Socket);
+			m_ServerInterface.m_Channel.Socket = -1;
 			return;
 		}
 #endif
@@ -93,7 +93,7 @@ public:
 
 	inline ssize_t Send(IOBuffer& out, sockaddr_in& target)
 	{
-		return sendto(m_ServerInterface.m_Channel.fd, 
+		return sendto(m_ServerInterface.m_Channel.Socket, 
 					out.GetWriteBuffer(), out.GetWriteSize(), 0,
 					(const sockaddr*)&target, sizeof(sockaddr_in));
 	}
