@@ -27,239 +27,239 @@
 
 struct ServicePoint
 {
-    sockaddr_in stAddress;
+	sockaddr_in stAddress;
 
-    uint32_t dwSendCount;
-    uint32_t dwRecvCount;
+	uint32_t dwSendCount;
+	uint32_t dwRecvCount;
 
-    uint32_t dwMaxQuotas;
-    uint32_t dwCurrentQuotas;
-    uint32_t dwRealQuotas;
+	uint32_t dwMaxQuotas;
+	uint32_t dwCurrentQuotas;
+	uint32_t dwRealQuotas;
 };
 
 class RoutePolicy
 {
 public:
-    inline uint32_t ResetTime()
-    {
-        return 10;
-    }
+	inline uint32_t ResetTime()
+	{
+		return 10;
+	}
 
-    inline void Reset(ServicePoint& point)
-    {
-        if(point.dwSendCount != 0)
-        {
-            double dLostRate = (double)(point.dwSendCount - point.dwRecvCount) / point.dwSendCount;
-            if(dLostRate > 0.03)
-                point.dwCurrentQuotas = 1;
-            else if(dLostRate < 0.0005)
-            {
-                uint32_t quotas = point.dwCurrentQuotas + point.dwMaxQuotas * 0.2;
-                point.dwCurrentQuotas = quotas > point.dwMaxQuotas ? point.dwMaxQuotas : quotas;
-            }
-            else
-            {
-                uint32_t quotas = point.dwCurrentQuotas + point.dwMaxQuotas * 0.05;
-                point.dwCurrentQuotas = quotas > point.dwMaxQuotas ? point.dwMaxQuotas : quotas;
-            }
-        }
-        point.dwRecvCount = 0;
-        point.dwSendCount = 0;
-    }
+	inline void Reset(ServicePoint& point)
+	{
+		if(point.dwSendCount != 0)
+		{
+			double dLostRate = (double)(point.dwSendCount - point.dwRecvCount) / point.dwSendCount;
+			if(dLostRate > 0.03)
+				point.dwCurrentQuotas = 1;
+			else if(dLostRate < 0.0005)
+			{
+				uint32_t quotas = point.dwCurrentQuotas + point.dwMaxQuotas * 0.2;
+				point.dwCurrentQuotas = quotas > point.dwMaxQuotas ? point.dwMaxQuotas : quotas;
+			}
+			else
+			{
+				uint32_t quotas = point.dwCurrentQuotas + point.dwMaxQuotas * 0.05;
+				point.dwCurrentQuotas = quotas > point.dwMaxQuotas ? point.dwMaxQuotas : quotas;
+			}
+		}
+		point.dwRecvCount = 0;
+		point.dwSendCount = 0;
+	}
 };
 
 template<typename T>
 class MemCompare :
-    public std::binary_function<T, T, bool>
+	public std::binary_function<T, T, bool>
 {
 public:
-    bool operator() (const T& v1, const T& v2)
-    {
-        return memcmp(&v1, &v2, sizeof(T)) > 0;
-    }
+	bool operator() (const T& v1, const T& v2)
+	{
+		return memcmp(&v1, &v2, sizeof(T)) > 0;
+	}
 };
 
 template<typename PolicyT = RoutePolicy>
 class LoadBalance
 {
 public:
-    LoadBalance() :
-        m_dwTotalQuotas(0)
-    {
-    }
+	LoadBalance() :
+		m_dwTotalQuotas(0)
+	{
+	}
 
-    void AddServicePoint(sockaddr_in* pAddr, uint32_t dwQuotas)
-    {
-        ServicePoint point;
-        bzero(&point, sizeof(ServicePoint));
+	void AddServicePoint(sockaddr_in* pAddr, uint32_t dwQuotas)
+	{
+		ServicePoint point;
+		bzero(&point, sizeof(ServicePoint));
 
-        memcpy(&point.stAddress, pAddr, sizeof(sockaddr_in));
-        point.dwMaxQuotas = dwQuotas;
-        point.dwCurrentQuotas = dwQuotas;
-        point.dwRealQuotas = dwQuotas;
-        m_dwTotalQuotas += dwQuotas;
+		memcpy(&point.stAddress, pAddr, sizeof(sockaddr_in));
+		point.dwMaxQuotas = dwQuotas;
+		point.dwCurrentQuotas = dwQuotas;
+		point.dwRealQuotas = dwQuotas;
+		m_dwTotalQuotas += dwQuotas;
 
-        m_stServicesMap.insert(std::make_pair(point.stAddress, point));
-    }
+		m_stServicesMap.insert(std::make_pair(point.stAddress, point));
+	}
 
-    bool LoadConfigure(const char* szFile)
-    {
-        int fd = open(szFile, O_RDONLY);
-        if(fd == -1)
-            return false;
+	bool LoadConfigure(const char* szFile)
+	{
+		int fd = open(szFile, O_RDONLY);
+		if(fd == -1)
+			return false;
 
-        struct stat info;
-        bzero(&info, sizeof(struct stat));
-        if(fstat(fd, &info) == -1)
-        {
-            close(fd);
-            return false;
-        }
+		struct stat info;
+		bzero(&info, sizeof(struct stat));
+		if(fstat(fd, &info) == -1)
+		{
+			close(fd);
+			return false;
+		}
 
-        char* buffer = (char*)malloc(info.st_size);
-        if(-1 == read(fd, buffer, info.st_size))
-        {
-            free(buffer);
-            close(fd);
-            return false;
-        }
-        std::string strContent = std::string(buffer, info.st_size);
-        free(buffer);
-        close(fd);
+		char* buffer = (char*)malloc(info.st_size);
+		if(-1 == read(fd, buffer, info.st_size))
+		{
+			free(buffer);
+			close(fd);
+			return false;
+		}
+		std::string strContent = std::string(buffer, info.st_size);
+		free(buffer);
+		close(fd);
 
-        m_dwTotalQuotas = 0;
+		m_dwTotalQuotas = 0;
 
-        boost::regex stIPPortExpression("^([0-9\\.]+)[ \t]+([0-9]+)[ \t]+([0-9]+)$");
-        boost::regex stCommentExpression("#.*$");
+		boost::regex stIPPortExpression("^([0-9\\.]+)[ \t]+([0-9]+)[ \t]+([0-9]+)$");
+		boost::regex stCommentExpression("#.*$");
 
-        std::list<std::string> vLines;
-        boost::algorithm::split(vLines, strContent, boost::algorithm::is_any_of("\n"));
-        BOOST_FOREACH(std::string sLine, vLines)
-        {
-            sLine = boost::regex_replace(sLine, stCommentExpression, "");
-            boost::algorithm::trim(sLine);
-            if(sLine.empty())
-                continue;
+		std::list<std::string> vLines;
+		boost::algorithm::split(vLines, strContent, boost::algorithm::is_any_of("\n"));
+		BOOST_FOREACH(std::string sLine, vLines)
+		{
+			sLine = boost::regex_replace(sLine, stCommentExpression, "");
+			boost::algorithm::trim(sLine);
+			if(sLine.empty())
+				continue;
 
-            boost::smatch what;
-            if(boost::regex_match(sLine, what, stIPPortExpression))
-            {
-                ServicePoint point;
-                bzero(&point, sizeof(ServicePoint));
-                point.stAddress.sin_family = PF_INET;
-                point.stAddress.sin_addr.s_addr = inet_addr(what[1].str().c_str());
-                point.stAddress.sin_port = htons(strtoul(what[2].str().c_str(), NULL, 10));
+			boost::smatch what;
+			if(boost::regex_match(sLine, what, stIPPortExpression))
+			{
+				ServicePoint point;
+				bzero(&point, sizeof(ServicePoint));
+				point.stAddress.sin_family = PF_INET;
+				point.stAddress.sin_addr.s_addr = inet_addr(what[1].str().c_str());
+				point.stAddress.sin_port = htons(strtoul(what[2].str().c_str(), NULL, 10));
 
-                point.dwMaxQuotas = strtoul(what[3].str().c_str(), NULL, 10);
-                point.dwCurrentQuotas = point.dwMaxQuotas;
-                point.dwRealQuotas = point.dwMaxQuotas;
-                m_dwTotalQuotas += point.dwMaxQuotas;
+				point.dwMaxQuotas = strtoul(what[3].str().c_str(), NULL, 10);
+				point.dwCurrentQuotas = point.dwMaxQuotas;
+				point.dwRealQuotas = point.dwMaxQuotas;
+				m_dwTotalQuotas += point.dwMaxQuotas;
 
-                m_stServicesMap.insert(std::make_pair(point.stAddress, point));
-            }
-        }
-        m_LastTimestamp = time(NULL);
+				m_stServicesMap.insert(std::make_pair(point.stAddress, point));
+			}
+		}
+		m_LastTimestamp = time(NULL);
 
-        if(m_dwTotalQuotas == 0)
-            return false;
-        return true;
-    }
+		if(m_dwTotalQuotas == 0)
+			return false;
+		return true;
+	}
 
-    void ShowInformation()
-    {
-        printf("Total Quotas: %u\n", m_dwTotalQuotas);
-        printf("Timestamp: %lu\n", m_LastTimestamp);
-        for(PointDictionary::iterator iter = m_stServicesMap.begin();
-            iter != m_stServicesMap.end();
-            ++iter)
-        {
-            printf("------------------------------------------------------------------------------------------------------------------\n");
-            sockaddr_in addr = iter->second.stAddress;
-            printf("[%s:%d] ", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-            printf("Max Quotas: %u ", iter->second.dwMaxQuotas);
-            printf("Current Quotas: %u ", iter->second.dwCurrentQuotas);
-            printf("Real Quotas: %u ", iter->second.dwRealQuotas);
-            printf("Send Count: %u ", iter->second.dwSendCount);
-            printf("Recv Count: %u\n", iter->second.dwRecvCount);
-        }
-        printf("------------------------------------------------------------------------------------------------------------------\n");
-    }
+	void ShowInformation()
+	{
+		printf("Total Quotas: %u\n", m_dwTotalQuotas);
+		printf("Timestamp: %lu\n", m_LastTimestamp);
+		for(PointDictionary::iterator iter = m_stServicesMap.begin();
+			iter != m_stServicesMap.end();
+			++iter)
+		{
+			printf("------------------------------------------------------------------------------------------------------------------\n");
+			sockaddr_in addr = iter->second.stAddress;
+			printf("[%s:%d] ", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+			printf("Max Quotas: %u ", iter->second.dwMaxQuotas);
+			printf("Current Quotas: %u ", iter->second.dwCurrentQuotas);
+			printf("Real Quotas: %u ", iter->second.dwRealQuotas);
+			printf("Send Count: %u ", iter->second.dwSendCount);
+			printf("Recv Count: %u\n", iter->second.dwRecvCount);
+		}
+		printf("------------------------------------------------------------------------------------------------------------------\n");
+	}
 
-    void Route(sockaddr_in* pstAddress)
-    {
-        if(!pstAddress) return;
-        time_t now = time(NULL);
+	void Route(sockaddr_in* pstAddress)
+	{
+		if(!pstAddress) return;
+		time_t now = time(NULL);
 
-        // reset quotas
-        bool bResetCurrentQuotas = (now - m_LastTimestamp > m_Policy.ResetTime());
-        if(m_dwTotalQuotas == 0 || bResetCurrentQuotas)
-        {
-            m_dwTotalQuotas = 0;
-            for(PointDictionary::iterator iter = m_stServicesMap.begin();
-                iter != m_stServicesMap.end();
-                ++iter)
-            {
-                if(bResetCurrentQuotas)
-                    m_Policy.Reset(iter->second);
+		// reset quotas
+		bool bResetCurrentQuotas = (now - m_LastTimestamp > m_Policy.ResetTime());
+		if(m_dwTotalQuotas == 0 || bResetCurrentQuotas)
+		{
+			m_dwTotalQuotas = 0;
+			for(PointDictionary::iterator iter = m_stServicesMap.begin();
+				iter != m_stServicesMap.end();
+				++iter)
+			{
+				if(bResetCurrentQuotas)
+					m_Policy.Reset(iter->second);
 
-                iter->second.dwRealQuotas = iter->second.dwCurrentQuotas;
-                m_dwTotalQuotas += iter->second.dwRealQuotas;
-            }
-            if(bResetCurrentQuotas)
-                m_LastTimestamp = now;
-        }
+				iter->second.dwRealQuotas = iter->second.dwCurrentQuotas;
+				m_dwTotalQuotas += iter->second.dwRealQuotas;
+			}
+			if(bResetCurrentQuotas)
+				m_LastTimestamp = now;
+		}
 
-        // Weighted Round Robin Balancing
-        srand(now);
-        uint32_t dwSeed = floor((double)(m_dwTotalQuotas + 1) * rand() / RAND_MAX);
+		// Weighted Round Robin Balancing
+		srand(now);
+		uint32_t dwSeed = floor((double)(m_dwTotalQuotas + 1) * rand() / RAND_MAX);
 
-        for(PointDictionary::iterator iter = m_stServicesMap.begin();
-            iter != m_stServicesMap.end();
-            ++iter)
-        {
-            if(dwSeed <= iter->second.dwRealQuotas)
-            {
-                memcpy(pstAddress, &iter->second.stAddress, sizeof(sockaddr_in));
+		for(PointDictionary::iterator iter = m_stServicesMap.begin();
+			iter != m_stServicesMap.end();
+			++iter)
+		{
+			if(dwSeed <= iter->second.dwRealQuotas)
+			{
+				memcpy(pstAddress, &iter->second.stAddress, sizeof(sockaddr_in));
 
-                ++iter->second.dwSendCount;
-                --iter->second.dwRealQuotas;
-                --m_dwTotalQuotas;
+				++iter->second.dwSendCount;
+				--iter->second.dwRealQuotas;
+				--m_dwTotalQuotas;
 
-                return;
-            }
-            dwSeed -= iter->second.dwRealQuotas;
-        }
-    }
+				return;
+			}
+			dwSeed -= iter->second.dwRealQuotas;
+		}
+	}
 
-    void Failure(sockaddr_in* pstAddress)
-    {
-        if(!pstAddress) return;
-        PointDictionary::iterator iter = m_stServicesMap.find(*pstAddress);
-        if(iter == m_stServicesMap.end())
-            return;
+	void Failure(sockaddr_in* pstAddress)
+	{
+		if(!pstAddress) return;
+		PointDictionary::iterator iter = m_stServicesMap.find(*pstAddress);
+		if(iter == m_stServicesMap.end())
+			return;
 
-        m_dwTotalQuotas -= iter->second.dwRealQuotas;
-        iter->second.dwRealQuotas = 0;
-        iter->second.dwCurrentQuotas = 1;
-    }
+		m_dwTotalQuotas -= iter->second.dwRealQuotas;
+		iter->second.dwRealQuotas = 0;
+		iter->second.dwCurrentQuotas = 1;
+	}
 
-    void Success(sockaddr_in* pstAddress)
-    {
-        if(!pstAddress) return;
-        PointDictionary::iterator iter = m_stServicesMap.find(*pstAddress);
-        if(iter == m_stServicesMap.end())
-            return;
+	void Success(sockaddr_in* pstAddress)
+	{
+		if(!pstAddress) return;
+		PointDictionary::iterator iter = m_stServicesMap.find(*pstAddress);
+		if(iter == m_stServicesMap.end())
+			return;
 
-        ++iter->second.dwRecvCount;
-    }
+		++iter->second.dwRecvCount;
+	}
 
 private:
-    typedef std::map<sockaddr_in, ServicePoint, MemCompare<sockaddr_in> > PointDictionary;
+	typedef std::map<sockaddr_in, ServicePoint, MemCompare<sockaddr_in> > PointDictionary;
 
-    uint32_t m_dwTotalQuotas;
-    time_t m_LastTimestamp;
-    PolicyT m_Policy;
-    PointDictionary m_stServicesMap;
+	uint32_t m_dwTotalQuotas;
+	time_t m_LastTimestamp;
+	PolicyT m_Policy;
+	PointDictionary m_stServicesMap;
 };
 
 #endif // define __LOADBALANCE_HPP__

@@ -34,102 +34,102 @@
 #include "Application.hpp"
 
 struct TweetADS {
-    uint64_t    tweetid;
-    uint16_t    adnum;
-    uint64_t    adbuffer[10];
+	uint64_t	tweetid;
+	uint16_t	adnum;
+	uint64_t	adbuffer[10];
 } __attribute__((packed));
 
 TimerHashTable<uint64_t, TweetADS> g_HashTable;
 
 struct Request {
-    uint64_t tweetid;
+	uint64_t tweetid;
 };
 
 struct Status
 {
-    uint64_t a;
-    uint64_t b;
+	uint64_t a;
+	uint64_t b;
 };
 
 class tweetadsd :
-    public TcpServer<tweetadsd, Status>
+	public TcpServer<tweetadsd, Status>
 {
 public:
-    void OnMessage(ChannelType& channel, IOBuffer& in)
-    {
-        LOG("[PID:%u][%s:%d] client connected.", Pool::Instance().GetID(), inet_ntoa(channel.Address.sin_addr), ntohs(channel.Address.sin_port));
-        char buffer[65535];
-        bzero(buffer, 65535);
-        IOBuffer out(buffer, 65535);
+	void OnMessage(ChannelType& channel, IOBuffer& in)
+	{
+		LOG("[PID:%u][%s:%d] client connected.", Pool::Instance().GetID(), inet_ntoa(channel.Address.sin_addr), ntohs(channel.Address.sin_port));
+		char buffer[65535];
+		bzero(buffer, 65535);
+		IOBuffer out(buffer, 65535);
 
-        Request request;
-        bzero(&request, sizeof(Request));
+		Request request;
+		bzero(&request, sizeof(Request));
 
-        in >> request.tweetid;
-        out << request.tweetid;
+		in >> request.tweetid;
+		out << request.tweetid;
 
-        TweetADS* pValue = g_HashTable.Hash(request.tweetid);
-        if(!pValue)
-        {
-            uint16_t num = 0;
-            out << num;
-        }
-        else
-        {
-            out << pValue->adnum;
-            for(uint16_t i=0; i<pValue->adnum; ++i)
-                out << pValue->adbuffer[i];
-        }
+		TweetADS* pValue = g_HashTable.Hash(request.tweetid);
+		if(!pValue)
+		{
+			uint16_t num = 0;
+			out << num;
+		}
+		else
+		{
+			out << pValue->adnum;
+			for(uint16_t i=0; i<pValue->adnum; ++i)
+				out << pValue->adbuffer[i];
+		}
 
-        PoolObject<Timer<void> >::Instance().SetTimeout(this, 100);
-        channel << out;
-    }
+		PoolObject<Timer<void> >::Instance().SetTimeout(this, 100);
+		channel << out;
+	}
 
-    void OnConnected(ChannelType& channel)
-    {
-        LOG("[PID:%u][%s:%d] client connected.", Pool::Instance().GetID(), inet_ntoa(channel.Address.sin_addr), ntohs(channel.Address.sin_port));
-    }
+	void OnConnected(ChannelType& channel)
+	{
+		LOG("[PID:%u][%s:%d] client connected.", Pool::Instance().GetID(), inet_ntoa(channel.Address.sin_addr), ntohs(channel.Address.sin_port));
+	}
 
-    void OnDisconnected(ChannelType& channel)
-    {
-        LOG("[PID:%u][%s:%d] disconnect client.", Pool::Instance().GetID(), inet_ntoa(channel.Address.sin_addr), ntohs(channel.Address.sin_port));
-    }
+	void OnDisconnected(ChannelType& channel)
+	{
+		LOG("[PID:%u][%s:%d] disconnect client.", Pool::Instance().GetID(), inet_ntoa(channel.Address.sin_addr), ntohs(channel.Address.sin_port));
+	}
 
-    void OnTimeout()
-    {
-    }
+	void OnTimeout()
+	{
+	}
 };
 
 class MyApp :
-    public Application<MyApp>
+	public Application<MyApp>
 {
 public:
 
-    bool Initialize(int argc, char* argv[])
-    {
-        if(!RegisterTcpServer(m_tweetadsd, "server_interface"))
-            return false;
+	bool Initialize(int argc, char* argv[])
+	{
+		if(!RegisterTcpServer(m_tweetadsd, "server_interface"))
+			return false;
 
-        // other initialize
-        std::map<std::string, std::string> stStorageConfig = Configure::Get("storage");
-        Seed seed(atoi(stStorageConfig["seed"].c_str()), atoi(stStorageConfig["count"].c_str()));
+		// other initialize
+		std::map<std::string, std::string> stStorageConfig = Configure::Get("storage");
+		Seed seed(atoi(stStorageConfig["seed"].c_str()), atoi(stStorageConfig["count"].c_str()));
 
-        SharedMemoryStorage sms;
-        if(SharedMemoryStorage::OpenStorage(&sms, 
-                        strtoul(stStorageConfig["shmkey"].c_str(), NULL, 16),
-                        TimerHashTable<uint64_t, TweetADS>::GetBufferSize(seed)) < 0)
-        {
-            printf("error: open hashtable storage fail.\n");
-            return false;
-        }
+		SharedMemoryStorage sms;
+		if(SharedMemoryStorage::OpenStorage(&sms, 
+						strtoul(stStorageConfig["shmkey"].c_str(), NULL, 16),
+						TimerHashTable<uint64_t, TweetADS>::GetBufferSize(seed)) < 0)
+		{
+			printf("error: open hashtable storage fail.\n");
+			return false;
+		}
 
-        g_HashTable = TimerHashTable<uint64_t, TweetADS>::LoadHashTable(sms, seed);
-        g_HashTable.SetDefaultTimeout((time_t)strtoul(stStorageConfig["timeout"].c_str(), NULL, 10));
+		g_HashTable = TimerHashTable<uint64_t, TweetADS>::LoadHashTable(sms, seed);
+		g_HashTable.SetDefaultTimeout((time_t)strtoul(stStorageConfig["timeout"].c_str(), NULL, 10));
 
-        return true;
-    }
+		return true;
+	}
 
-    tweetadsd m_tweetadsd;
+	tweetadsd m_tweetadsd;
 };
 
 AppRun(MyApp);

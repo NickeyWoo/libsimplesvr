@@ -31,126 +31,126 @@ pthread_key_t safe_strerror_key;
 
 void safe_strerror_free(void* buffer)
 {
-    free(buffer);
+	free(buffer);
 }
 
 void safe_strerror_init()
 {
-    pthread_key_create(&safe_strerror_key, &safe_strerror_free);
+	pthread_key_create(&safe_strerror_key, &safe_strerror_free);
 }
 
 const char* safe_strerror(int error)
 {
 #if defined(POOL_USE_THREADPOOL)
-    pthread_once(&safe_strerror_once, &safe_strerror_init);
+	pthread_once(&safe_strerror_once, &safe_strerror_init);
 
-    char* buffer = (char*)pthread_getspecific(safe_strerror_key);
-    if(!buffer)
-    {
-        buffer = (char*)malloc(256);
-        pthread_setspecific(safe_strerror_key, buffer);
-    }
+	char* buffer = (char*)pthread_getspecific(safe_strerror_key);
+	if(!buffer)
+	{
+		buffer = (char*)malloc(256);
+		pthread_setspecific(safe_strerror_key, buffer);
+	}
 
-    if(error < 0 || error >= _sys_nerr || _sys_errlist[error] == NULL)
-        snprintf(buffer, 256, "Unknown error %d", error);
-    else
-        snprintf(buffer, 256, "%s", _sys_errlist[error]);
+	if(error < 0 || error >= _sys_nerr || _sys_errlist[error] == NULL)
+		snprintf(buffer, 256, "Unknown error %d", error);
+	else
+		snprintf(buffer, 256, "%s", _sys_errlist[error]);
 
-    return buffer;
+	return buffer;
 #else
-    return strerror(error);
+	return strerror(error);
 #endif
 }
 
 Log::Log() :
-    m_File(NULL)
+	m_File(NULL)
 {
 }
 
 Log::~Log()
 {
-    Close();
+	Close();
 }
 
 bool Log::Initialize(std::string path)
 {
-    m_Path = path;
-    if(m_Path.empty())
-        m_Path = std::string(".");
+	m_Path = path;
+	if(m_Path.empty())
+		m_Path = std::string(".");
 
-    std::string strLog = (boost::format("%s/runlog_%u_0.log") % m_Path % Pool::Instance().GetID()).str();
-    m_File = fopen(strLog.c_str(), "a");
-    if(m_File == NULL)
-        return false;
-    return true;
+	std::string strLog = (boost::format("%s/runlog_%u_0.log") % m_Path % Pool::Instance().GetID()).str();
+	m_File = fopen(strLog.c_str(), "a");
+	if(m_File == NULL)
+		return false;
+	return true;
 }
 
 void Log::Close()
 {
-    if(m_File)
-    {
-        Flush();
-        fclose(m_File);
-    }
+	if(m_File)
+	{
+		Flush();
+		fclose(m_File);
+	}
 }
 
 void Log::Flush()
 {
-    fflush(m_File);
+	fflush(m_File);
 }
 
-void Log::Write(const char* file, int line, const char* szFormat, ...)
+void Log::Write(const char* file, int line, const char* func, const char* szFormat, ...)
 {
-    if(m_File == NULL)
-        return;
+	if(m_File == NULL)
+		return;
 
-    va_list ap;
-    va_start(ap, szFormat);
+	va_list ap;
+	va_start(ap, szFormat);
 
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    struct tm now;
-    localtime_r(&tv.tv_sec, &now);
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	struct tm now;
+	localtime_r(&tv.tv_sec, &now);
 
-    fprintf(m_File, "[%04d-%02d-%02d %02d:%02d:%02d][%s:%d]", now.tm_year+1900, now.tm_mon+1, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, file, line);
-    vfprintf(m_File, szFormat, ap);
-    fprintf(m_File, "\n");
+	fprintf(m_File, "[%04d-%02d-%02d %02d:%02d:%02d][%s:%d][%s]", now.tm_year+1900, now.tm_mon+1, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, file, line, func);
+	vfprintf(m_File, szFormat, ap);
+	fprintf(m_File, "\n");
 
-    va_end(ap);
+	va_end(ap);
 
-    ShiftLog();
+	ShiftLog();
 }
 
 void Log::ShiftLog()
 {
-    int fd = fileno(m_File);
-    if(fd == -1)
-        return;
+	int fd = fileno(m_File);
+	if(fd == -1)
+		return;
 
-    struct stat buff;
-    if(fstat(fd, &buff) != -1 &&
-        buff.st_size >= MAX_LOGFILE_SIZE)
-    {
-        fflush(m_File);
-        fclose(m_File);
+	struct stat buff;
+	if(fstat(fd, &buff) != -1 &&
+		buff.st_size >= MAX_LOGFILE_SIZE)
+	{
+		fflush(m_File);
+		fclose(m_File);
 
-        std::string file;
-        for(int i=MAX_LOGFILE_COUNT-1; i>=0; --i)
-        {
-            file = (boost::format("%s/runlog_%u_%d.log") % m_Path % Pool::Instance().GetID() % i).str();
-            if(0 != access(file.c_str(), R_OK|W_OK))
-                continue;
+		std::string file;
+		for(int i=MAX_LOGFILE_COUNT-1; i>=0; --i)
+		{
+			file = (boost::format("%s/runlog_%u_%d.log") % m_Path % Pool::Instance().GetID() % i).str();
+			if(0 != access(file.c_str(), R_OK|W_OK))
+				continue;
 
-            if(i == MAX_LOGFILE_COUNT-1)
-                unlink(file.c_str());
-            else
-            {
-                std::string newfile = (boost::format("%s/runlog_%u_%d.log") % m_Path % Pool::Instance().GetID() % (i + 1)).str();
-                rename(file.c_str(), newfile.c_str());
-            }
-        }
-        m_File = fopen(file.c_str(), "a");
-    }
+			if(i == MAX_LOGFILE_COUNT-1)
+				unlink(file.c_str());
+			else
+			{
+				std::string newfile = (boost::format("%s/runlog_%u_%d.log") % m_Path % Pool::Instance().GetID() % (i + 1)).str();
+				rename(file.c_str(), newfile.c_str());
+			}
+		}
+		m_File = fopen(file.c_str(), "a");
+	}
 }
 
 

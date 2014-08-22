@@ -22,7 +22,7 @@
 #include "EPoll.hpp"
 
 EPoll::EPoll() :
-    m_epfd(-1)
+	m_epfd(-1)
 {
 }
 
@@ -33,24 +33,24 @@ EPoll::~EPoll()
 int EPoll::CreatePoll()
 {
 #ifdef __USE_GNU
-    m_epfd = epoll_create1(EPOLL_CLOEXEC);
+	m_epfd = epoll_create1(EPOLL_CLOEXEC);
 #else
-    m_epfd = epoll_create(1000);
+	m_epfd = epoll_create(1000);
 #endif
-    return m_epfd;
+	return m_epfd;
 }
 
 void EPoll::Close()
 {
-    close(m_epfd);
+	close(m_epfd);
 }
 
 int EPoll::EventCtl(int opeartor, uint32_t events, int fd, void* ptr)
 {
-    epoll_event ev;
-    ev.events = events;
-    ev.data.ptr = ptr;
-    return epoll_ctl(m_epfd, opeartor, fd, &ev);
+	epoll_event ev;
+	ev.events = events;
+	ev.data.ptr = ptr;
+	return epoll_ctl(m_epfd, opeartor, fd, &ev);
 }
 
 

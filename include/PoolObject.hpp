@@ -26,37 +26,37 @@ template<typename SingletonT>
 class ThreadPoolObject
 {
 public:
-    static void ObjectFree(void* buffer)
-    {
-        SingletonT* pObject = (SingletonT*)buffer;
-        delete pObject;
-    }
+	static void ObjectFree(void* buffer)
+	{
+		SingletonT* pObject = (SingletonT*)buffer;
+		delete pObject;
+	}
 
-    static void ObjectKeyInit()
-    {
-        pthread_key_create(&ThreadPoolObject<SingletonT>::objectKey, &ThreadPoolObject<SingletonT>::ObjectFree);
-    }
+	static void ObjectKeyInit()
+	{
+		pthread_key_create(&ThreadPoolObject<SingletonT>::objectKey, &ThreadPoolObject<SingletonT>::ObjectFree);
+	}
 
-    static inline SingletonT* GetObject()
-    {
-        pthread_once(&ThreadPoolObject<SingletonT>::objectOnce, &ThreadPoolObject<SingletonT>::ObjectKeyInit);
-        return (SingletonT*)pthread_getspecific(ThreadPoolObject<SingletonT>::objectKey);
-    }
+	static inline SingletonT* GetObject()
+	{
+		pthread_once(&ThreadPoolObject<SingletonT>::objectOnce, &ThreadPoolObject<SingletonT>::ObjectKeyInit);
+		return (SingletonT*)pthread_getspecific(ThreadPoolObject<SingletonT>::objectKey);
+	}
 
-    static SingletonT& Instance()
-    {
-        SingletonT* pObject = ThreadPoolObject<SingletonT>::GetObject();
-        if(!pObject)
-        {
-            pObject = new SingletonT();
-            pthread_setspecific(ThreadPoolObject<SingletonT>::objectKey, pObject);
-        }
-        return *pObject;
-    }
+	static SingletonT& Instance()
+	{
+		SingletonT* pObject = ThreadPoolObject<SingletonT>::GetObject();
+		if(!pObject)
+		{
+			pObject = new SingletonT();
+			pthread_setspecific(ThreadPoolObject<SingletonT>::objectKey, pObject);
+		}
+		return *pObject;
+	}
 
 private:
-    static pthread_once_t objectOnce;
-    static pthread_key_t objectKey;
+	static pthread_once_t objectOnce;
+	static pthread_key_t objectKey;
 };
 
 template<typename SingletonT>
@@ -69,17 +69,17 @@ template<typename SingletonT>
 class ProcessPoolObject
 {
 public:
-    static SingletonT& Instance()
-    {
-        static SingletonT instance;
-        return instance;
-    }
+	static SingletonT& Instance()
+	{
+		static SingletonT instance;
+		return instance;
+	}
 };
 
 #if defined(POOL_USE_THREADPOOL)
-    #define PoolObject ThreadPoolObject
+	#define PoolObject ThreadPoolObject
 #else
-    #define PoolObject ProcessPoolObject
+	#define PoolObject ProcessPoolObject
 #endif
 
 #endif // define __POOLOBJECT_HPP__
