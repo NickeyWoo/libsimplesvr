@@ -27,13 +27,13 @@
 #include "Clock.hpp"
 #include "Log.hpp"
 
-#define CONNECTIONPOOL_MAXCONNECTION		2
-#define CONNECTIONPOOL_IDLE_TIMEOUT			300000		// 5 min timeout
+#define CONNECTIONPOOL_MAXCONNECTION        2
+#define CONNECTIONPOOL_IDLE_TIMEOUT         300000      // 5 min timeout
 
 template<typename TcpClientT, int TimerInterval>
 struct ConnectionInfo
 {
-	TcpClientT stClient;
+    TcpClientT stClient;
     sockaddr_in stAddress;
     typename Timer<ConnectionInfo<TcpClientT, TimerInterval>*, 
         TimerInterval>::TimerID IdleConnTimerId;
@@ -43,17 +43,17 @@ template<typename TcpClientT,
             size_t MaxConn = CONNECTIONPOOL_MAXCONNECTION, size_t IdleConnTimeout = CONNECTIONPOOL_IDLE_TIMEOUT,
             int TimerInterval = TIMER_DEFAULT_INTERVAL>
 class ConnectionPool :
-	public boost::noncopyable
+    public boost::noncopyable
 {
 public:
-	ConnectionPool() :
+    ConnectionPool() :
         m_ConnectionCount(0),
         m_MaxConnection(MaxConn),
         m_IdleConnectionTimeout(IdleConnTimeout)
     {
     }
 
-	int Attach(sockaddr_in& stAddr, TcpClientT** ppstClient)
+    int Attach(sockaddr_in& stAddr, TcpClientT** ppstClient)
     {
         typename ConnectionInfoMap::iterator iter = m_stConnectionMap.find(stAddr);
         if(iter == m_stConnectionMap.end())
@@ -86,7 +86,7 @@ public:
         return 0;
     }
 
-	void Detach(TcpClientT* pstClient)
+    void Detach(TcpClientT* pstClient)
     {
         ConnectionInfo<TcpClientT, TimerInterval>* pConnInfo = 
             reinterpret_cast<ConnectionInfo<TcpClientT, TimerInterval>*>(pstClient);
@@ -106,7 +106,7 @@ public:
             iter->second.push_front(pConnInfo);
     }
 
-	void OnTimeout(ConnectionInfo<TcpClientT, TimerInterval>* pConnInfo)
+    void OnTimeout(ConnectionInfo<TcpClientT, TimerInterval>* pConnInfo)
     {
         if(pConnInfo->stClient.IsConnected())
             pConnInfo->stClient.Disconnect();
@@ -126,15 +126,15 @@ public:
         --m_ConnectionCount;
     }
 
-	inline void SetMaxConnection(uint32_t max)
-	{
-		m_MaxConnection = max;
-	}
+    inline void SetMaxConnection(uint32_t max)
+    {
+        m_MaxConnection = max;
+    }
 
-	inline void SetIdleTimeout(uint32_t timeout)
-	{
-		m_IdleConnectionTimeout = timeout;
-	}
+    inline void SetIdleTimeout(uint32_t timeout)
+    {
+        m_IdleConnectionTimeout = timeout;
+    }
 
 private:
 
@@ -150,9 +150,9 @@ private:
         return pNewConnInfo;
     }
 
-	uint32_t m_ConnectionCount;
-	uint32_t m_MaxConnection;
-	uint32_t m_IdleConnectionTimeout;
+    uint32_t m_ConnectionCount;
+    uint32_t m_MaxConnection;
+    uint32_t m_IdleConnectionTimeout;
 
     typedef std::list<ConnectionInfo<TcpClientT, TimerInterval>*> ConnectionInfoList;
     typedef std::map<sockaddr_in, ConnectionInfoList, MemCompare<sockaddr_in> > ConnectionInfoMap;

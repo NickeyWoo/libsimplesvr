@@ -22,7 +22,7 @@
 #include "Server.hpp"
 
 InternalException::InternalException(const char* errorMessage) :
-	m_ErrorMessage(errorMessage)
+    m_ErrorMessage(errorMessage)
 {
 }
 
@@ -32,18 +32,18 @@ InternalException::~InternalException() throw()
 
 const char* InternalException::what() const throw()
 {
-	return m_ErrorMessage.c_str();
+    return m_ErrorMessage.c_str();
 }
 
 int SetCloexecFd(int fd)
 {
-	int df = fcntl(fd, F_GETFD, 0);
-	if(df == -1)
-		return -1;
+    int df = fcntl(fd, F_GETFD, 0);
+    if(df == -1)
+        return -1;
 
-	if(-1 == fcntl(fd, F_SETFD, df | FD_CLOEXEC))
-		return -1;
+    if(-1 == fcntl(fd, F_SETFD, df | FD_CLOEXEC))
+        return -1;
 
-	return 0;
+    return 0;
 }
 
