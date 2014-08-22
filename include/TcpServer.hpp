@@ -52,7 +52,7 @@ public:
 		socklen_t len = sizeof(sockaddr_in);
 
 #ifdef __USE_GNU
-		int clifd = accept4(pInterface->m_Channel.Socket, (sockaddr*)&cliAddr, &len, SOCK_NONBLOCK|SOCK_CLOEXEC);
+		int clifd = accept4(pInterface->m_Channel.Socket, (sockaddr*)&cliAddr, &len, SOCK_CLOEXEC);
 		if(clifd == -1)
 		{
 			if(errno == EAGAIN || errno == EWOULDBLOCK)
@@ -68,7 +68,7 @@ public:
 			throw InternalException((boost::format("[%s:%d][error] accept fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
 		}
 
-		if(SetNonblockAndCloexecFd(clifd) < 0)
+		if(SetCloexecFd(clifd) < 0)
 		{
 			close(clifd);
 			throw InternalException((boost::format("[%s:%d][error] SetNonblockAndCloexecFd fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
@@ -80,6 +80,7 @@ public:
 
 		pChannelInterface->m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
 		pChannelInterface->m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
+        pChannelInterface->m_ErrorCallback = boost::bind(&ServerImplT::OnErrorable, reinterpret_cast<ServerImplT*>(this), _1);
 
 		EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
 		if(scheduler.Register(pChannelInterface, EventScheduler::PollType::POLLIN) == -1)
@@ -143,11 +144,26 @@ public:
 	{
 	}
 
+	void OnErrorable(ServerInterface<ChannelDataT>* pInterface)
+	{
+		this->DisconnectClient(pInterface->m_Channel);
+
+		LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+
+		this->OnError(pInterface->m_Channel);
+
+		LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
+								inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
+								ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+	}
+
 	// udp server interface
 	TcpServer()
 	{
 #ifdef __USE_GNU
-		m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+		m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM|SOCK_CLOEXEC, 0);
 		if(m_ServerInterface.m_Channel.Socket == -1)
 			return;
 #else
@@ -155,7 +171,7 @@ public:
 		if(m_ServerInterface.m_Channel.Socket == -1)
 			return;
 
-		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.Socket) < 0)
+		if(SetCloexecFd(m_ServerInterface.m_Channel.Socket) < 0)
 		{
 			close(m_ServerInterface.m_Channel.Socket);
 			m_ServerInterface.m_Channel.Socket = -1;
@@ -190,18 +206,17 @@ public:
 	{
 	}
 
-	void Disconnect(ChannelType& channel)
+    virtual void OnError(ChannelType& channel)
+    {
+    }
+
+	void DisconnectClient(ChannelType& channel)
 	{
 		ServerInterface<ChannelDataT>* pChannelInterface = channel.GetInterface();
 		PoolObject<EventScheduler>::Instance().UnRegister(pChannelInterface);
 		shutdown(pChannelInterface->m_Channel.Socket, SHUT_RDWR);
 		close(pChannelInterface->m_Channel.Socket);
 		delete pChannelInterface;
-	}
-
-	inline int Shutdown(ChannelType& channel, int how)
-	{
-		return shutdown(channel.Socket, how);
 	}
 
 	ServerInterface<ChannelDataT> m_ServerInterface;

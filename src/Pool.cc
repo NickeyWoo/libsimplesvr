@@ -59,16 +59,7 @@ int ProcessPool::Startup(uint32_t num)
 
 	scheduler.SetIdleTimeout(m_IdleTimeout);
 
-	for(std::vector<std::pair<ServerInterface<void>*, int> >::iterator iter = m_vRegisterService.begin();
-		iter != m_vRegisterService.end();
-		++iter)
-	{
-		if(scheduler.Register(iter->first, iter->second) != 0)
-			return -1;
-	}
-
 	m_bStartup = true;
-
 	for(std::list<boost::function<bool(void)> >::iterator iter = m_StartupCallbackList.begin();
 		iter != m_StartupCallbackList.end();
 		++iter)
@@ -133,16 +124,7 @@ void* ThreadPool::ThreadProc(void* paramenter)
 	if(scheduler.CreateScheduler() == -1)
 		return NULL;
 
-	ThreadPool& pool = ThreadPool::Instance();
-	scheduler.SetIdleTimeout(pool.m_IdleTimeout);
-
-	for(std::vector<std::pair<ServerInterface<void>*, int> >::iterator iter = pool.m_vRegisterService.begin();
-		iter != pool.m_vRegisterService.end();
-		++iter)
-	{
-		if(scheduler.Register(iter->first, iter->second) != 0)
-			return NULL;
-	}
+	scheduler.SetIdleTimeout(ThreadPool::Instance().m_IdleTimeout);
 
 	std::list<boost::function<bool(void)> >& list = ThreadPool::Instance().m_StartupCallbackList;
 	for(std::list<boost::function<bool(void)> >::iterator iter = list.begin();

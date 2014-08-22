@@ -19,6 +19,9 @@
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 #include "PoolObject.hpp"
+#include "Channel.hpp"
+#include "Server.hpp"
+#include "TcpClient.hpp"
 #include "Timer.hpp"
 #include "Clock.hpp"
 #include "Log.hpp"
@@ -29,24 +32,44 @@
 #define CONNECTIONPOOL_MAXCONNECTION		50
 #define CONNECTIONPOOL_IDLE_TIMEOUT			30000		// 30s timeout
 
-struct ConnectFd {
-	int sockfd;
+template<typename TcpClientT, int TimerInterval>
+struct ConnectionInfo
+{
+	TcpClientT stClient;
 	uint32_t dwFlags;
+    typename Timer<TcpClientT*, TimerInterval>::TimerID IdleConnTimerId;
 };
 
-struct Connection {
-	sockaddr_in Address;
-	uint32_t Status;
-};
-
+template<typename TcpClientT, 
+            size_t MaxConn = CONNECTIONPOOL_MAXCONNECTION, size_t IdleConnTimeout = CONNECTIONPOOL_IDLE_TIMEOUT,
+            int TimerInterval = TIMER_DEFAULT_INTERVAL>
 class ConnectionPool :
 	public boost::noncopyable
 {
 public:
-	ConnectionPool();
-	int Attach(sockaddr_in* pAddr);
-	void Detach(int fd);
-	void OnTimeout();
+	ConnectionPool() :
+        m_MaxConnection(MaxConn),
+        m_IdleConnectionTimeout(IdleConnTimeout)
+    {
+    }
+
+	int Attach(TcpClientT** ppstClient)
+    {
+        ConnectionInfo<TcpClientT, TimerInterval> info;
+
+        PoolObject<Timer<TcpClientT*, TimerInterval> >::Instance().Clear(info.IdleConnTimerId);
+        *ppstClient = &info.stClient;
+        return 0;
+    }
+
+	void Detach(TcpClientT* pstClient)
+    {
+    }
+
+	void OnTimeout(TcpClientT* pstClient)
+    {
+        pstClient->Disconnect();
+    }
 
 	inline void SetMaxConnection(uint32_t max)
 	{
@@ -61,6 +84,7 @@ public:
 private:
 	uint32_t m_MaxConnection;
 	uint32_t m_IdleConnectionTimeout;
+
 };
 
 

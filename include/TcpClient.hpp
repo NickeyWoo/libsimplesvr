@@ -34,14 +34,21 @@ public:
 			m_ServerInterface.m_Channel.Socket = -1;
 			return -1;
 		}
-		return 0;
+
+		EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
+		return scheduler.Register(this, EventScheduler::PollType::POLLOUT);
 	}
+
+    inline void Close()
+    {
+		close(m_ServerInterface.m_Channel.Socket);
+		m_ServerInterface.m_Channel.Socket = -1;
+    }
 
 	void Disconnect()
 	{
-		shutdown(m_ServerInterface.m_Channel.Socket, SHUT_RDWR);
-		close(m_ServerInterface.m_Channel.Socket);
-		m_ServerInterface.m_Channel.Socket = -1;
+		PoolObject<EventScheduler>::Instance().UnRegister(this);
+		Shutdown(SHUT_RDWR);
 	}
 
 	void OnWriteable(ServerInterface<ChannelDataT>* pInterface)
@@ -69,9 +76,6 @@ public:
 
 		if(in.GetReadSize() == 0)
 		{
-			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-			scheduler.UnRegister(this);
-
 			Disconnect();
 
 			LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
@@ -100,9 +104,6 @@ public:
 
 	void OnErrorable(ServerInterface<ChannelDataT>* pInterface)
 	{
-		EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-		scheduler.UnRegister(this);
-
 		Disconnect();
 
 		LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
@@ -120,7 +121,7 @@ public:
 	TcpClient()
 	{
 #ifdef __USE_GNU
-		m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+		m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM|SOCK_CLOEXEC, 0);
 		if(m_ServerInterface.m_Channel.Socket == -1)
 			return;
 #else
@@ -128,7 +129,7 @@ public:
 		if(m_ServerInterface.m_Channel.Socket == -1)
 			return;
 
-		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.Socket) < 0)
+		if(SetCloexecFd(m_ServerInterface.m_Channel.Socket) < 0)
 		{
 			close(m_ServerInterface.m_Channel.Socket);
 			m_ServerInterface.m_Channel.Socket = -1;

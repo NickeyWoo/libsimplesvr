@@ -67,7 +67,9 @@ public:
 		if(server.Listen(addr) != 0)
 			return false;
 
-		return (Pool::Instance().Register(&server, EventScheduler::PollType::POLLIN) == 0);
+		static TcpServerStartup<ServerImplT, sockaddr_in> startup;
+		startup.Register(&server, addr);
+		return true;
 	}
 
 	template<typename ClientImplT>
@@ -206,6 +208,33 @@ public:
 		StartupDataT m_Data;
 	};
 
+	template<typename ServerImplT, typename StartupDataT>
+	class TcpServerStartup :
+		public boost::noncopyable
+	{
+	public:
+		void Register(ServerImplT* pServer, StartupDataT data)
+		{
+			m_Data = data;
+            m_pServer = pServer;
+
+			if(Pool::Instance().IsStartup())
+				OnStartup();
+			else
+				Pool::Instance().RegisterStartupCallback(boost::bind(&TcpServerStartup<ServerImplT, StartupDataT>::OnStartup, this));
+		}
+
+		bool OnStartup()
+		{
+			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
+			return (scheduler.Register(m_pServer, EventScheduler::PollType::POLLIN) == 0);
+		}
+	
+	private:
+		StartupDataT m_Data;
+        ServerImplT* m_pServer;
+	};
+
 	template<typename ClientImplT, typename StartupDataT>
 	class TcpClientStartup :
 		public boost::noncopyable
@@ -223,11 +252,7 @@ public:
 
 		bool OnStartup()
 		{
-			if(PoolObject<ClientImplT>::Instance().Connect(m_Data) != 0)
-				return false;
-
-			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-			return (scheduler.Register(&PoolObject<ClientImplT>::Instance(), EventScheduler::PollType::POLLOUT) == 0);
+			return (PoolObject<ClientImplT>::Instance().Connect(m_Data) == 0);
 		}
 	
 	private:

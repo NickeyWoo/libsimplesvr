@@ -19,14 +19,14 @@ extern const char* safe_strerror(int error);
 
 #ifdef DEBUG
 	#define LOG(...)															\
-		printf("[%s:%d]", __FILE__, __LINE__);									\
+		printf("[%s:%d][%s]", __FILE__, __LINE__, __FUNCTION__);				\
 		printf(__VA_ARGS__);													\
 		printf("\n");															\
 		PoolObject< ::Log>::Instance().Write(__FILE__, __LINE__, __VA_ARGS__); 	\
 		PoolObject< ::Log>::Instance().Flush();
 
 	#define TRACE_LOG(...)														\
-		printf("[%s:%d]", __FILE__, __LINE__);									\
+		printf("[%s:%d][%s]", __FILE__, __LINE__, __FUNCTION__);				\
 		printf(__VA_ARGS__);													\
 		printf("\n");
 

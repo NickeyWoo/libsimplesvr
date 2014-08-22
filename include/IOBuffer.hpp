@@ -55,6 +55,7 @@ class IOBuffer :
 public:
 	IOBuffer(size_t size);
 	IOBuffer(char* buffer, size_t size);
+	IOBuffer(char* buffer, size_t size, size_t avaliableReadSize);
 	~IOBuffer();
 
 	ssize_t Write(const char* buffer, size_t size);

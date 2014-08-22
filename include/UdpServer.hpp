@@ -64,7 +64,7 @@ public:
 	UdpServer()
 	{
 #ifdef __USE_GNU
-		m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_DGRAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0);
+		m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_DGRAM|SOCK_CLOEXEC, 0);
 		if(m_ServerInterface.m_Channel.Socket == -1)
 			return;
 #else
@@ -72,7 +72,7 @@ public:
 		if(m_ServerInterface.m_Channel.Socket == -1)
 			return;
 
-		if(SetNonblockAndCloexecFd(m_ServerInterface.m_Channel.Socket) < 0)
+		if(SetCloexecFd(m_ServerInterface.m_Channel.Socket) < 0)
 		{
 			close(m_ServerInterface.m_Channel.Socket);
 			m_ServerInterface.m_Channel.Socket = -1;

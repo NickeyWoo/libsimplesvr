@@ -70,6 +70,16 @@ IOBuffer::IOBuffer(char* buffer, size_t size) :
 {
 }
 
+IOBuffer::IOBuffer(char* buffer, size_t size, size_t avaliableReadSize) :
+	m_NeedFree(false),
+	m_Buffer(buffer),
+	m_BufferSize(size),
+	m_ReadPosition(0),
+	m_AvailableReadSize(avaliableReadSize),
+	m_WritePosition(0)
+{
+}
+
 IOBuffer::~IOBuffer()
 {
 	if(m_NeedFree)

@@ -40,21 +40,6 @@ public:
 			m_StartupCallbackList.push_back(callback);
 	}
 
-	template<typename ServiceT>
-	inline int Register(ServiceT* pService, int events)
-	{
-		if(!m_bStartup)
-		{
-			m_vRegisterService.push_back(std::make_pair((ServerInterface<void>*)&pService->m_ServerInterface, events));
-			return 0;
-		}
-		else
-		{
-			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-			return scheduler.Register(pService, events);
-		}
-	}
-
 	inline uint32_t GetID()
 	{
 		return m_id;
@@ -86,7 +71,6 @@ protected:
 	bool m_bStartup;
 	uint32_t m_id;
 	int m_IdleTimeout;
-	std::vector<std::pair<ServerInterface<void>*, int> > m_vRegisterService;
 	std::list<boost::function<bool(void)> > m_StartupCallbackList;
 };
 
@@ -108,21 +92,6 @@ public:
 			m_StartupCallbackList.push_front(callback);
 		else
 			m_StartupCallbackList.push_back(callback);
-	}
-
-	template<typename ServiceT>
-	inline int Register(ServiceT* pService, int events)
-	{
-		if(!m_bStartup)
-		{
-			m_vRegisterService.push_back(std::make_pair((ServerInterface<void>*)&pService->m_ServerInterface, events));
-			return 0;
-		}
-		else
-		{
-			EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-			return scheduler.Register(pService, events);
-		}
 	}
 
 	inline int SetIdleTimeout(int timeout)
@@ -153,7 +122,6 @@ protected:
 
 	bool m_bStartup;
 	int m_IdleTimeout;
-	std::vector<std::pair<ServerInterface<void>*, int> > m_vRegisterService;
 	std::list<boost::function<bool(void)> > m_StartupCallbackList;
 };
 
