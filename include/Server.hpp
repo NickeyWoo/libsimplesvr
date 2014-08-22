@@ -19,15 +19,15 @@
 #include "Log.hpp"
 
 class InternalException :
-	public std::exception
+    public std::exception
 {
 public:
-	InternalException(const char* errorMessage);
-	virtual ~InternalException() throw();
-	virtual const char* what() const throw();
+    InternalException(const char* errorMessage);
+    virtual ~InternalException() throw();
+    virtual const char* what() const throw();
 
 private:
-	std::string m_ErrorMessage;
+    std::string m_ErrorMessage;
 };
 
 
@@ -35,25 +35,25 @@ template<typename ChannelDataT>
 class ServerInterface
 {
 public:
-	inline void OnWriteable()
-	{
-		m_WriteableCallback(this);
-	}
+    inline void OnWriteable()
+    {
+        m_WriteableCallback(this);
+    }
 
-	inline void OnReadable()
-	{
-		m_ReadableCallback(this);
-	}
+    inline void OnReadable()
+    {
+        m_ReadableCallback(this);
+    }
 
-	inline void OnError()
-	{
-		m_ErrorCallback(this);
-	}
+    inline void OnError()
+    {
+        m_ErrorCallback(this);
+    }
 
-	boost::function<void(ServerInterface<ChannelDataT>*)> m_ReadableCallback;
-	boost::function<void(ServerInterface<ChannelDataT>*)> m_WriteableCallback;
-	boost::function<void(ServerInterface<ChannelDataT>*)> m_ErrorCallback;
-	Channel<ChannelDataT> m_Channel;
+    boost::function<void(ServerInterface<ChannelDataT>*)> m_ReadableCallback;
+    boost::function<void(ServerInterface<ChannelDataT>*)> m_WriteableCallback;
+    boost::function<void(ServerInterface<ChannelDataT>*)> m_ErrorCallback;
+    Channel<ChannelDataT> m_Channel;
 };
 
 int SetCloexecFd(int fd);
