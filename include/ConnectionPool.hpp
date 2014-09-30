@@ -27,8 +27,9 @@
 #include "Clock.hpp"
 #include "Log.hpp"
 
-#define CONNECTIONPOOL_MAXCONNECTION        2
+#define CONNECTIONPOOL_MAXCONNECTION        100
 #define CONNECTIONPOOL_IDLE_TIMEOUT         300000      // 5 min timeout
+#define CONNECTIONPOOL_KEEPCONNECTION       ((size_t)0)
 
 template<typename TcpClientT, int TimerInterval>
 struct ConnectionInfo
@@ -40,7 +41,7 @@ struct ConnectionInfo
 };
 
 template<typename TcpClientT, 
-            size_t MaxConn = CONNECTIONPOOL_MAXCONNECTION, size_t IdleConnTimeout = CONNECTIONPOOL_IDLE_TIMEOUT,
+            size_t IdleConnTimeout = CONNECTIONPOOL_IDLE_TIMEOUT, size_t MaxConn = CONNECTIONPOOL_MAXCONNECTION,
             int TimerInterval = TIMER_DEFAULT_INTERVAL>
 class ConnectionPool :
     public boost::noncopyable
@@ -80,6 +81,9 @@ public:
                 ConnectionInfo<TcpClientT, TimerInterval>* pConnInfo = *listIter;
                 iter->second.erase(listIter);
 
+                PoolObject<Timer<ConnectionInfo<TcpClientT, TimerInterval>*, TimerInterval> >::Instance()
+                    .Clear(pConnInfo->IdleConnTimerId);
+
                 *ppstClient = &pConnInfo->stClient;
             }
         }
@@ -91,8 +95,11 @@ public:
         ConnectionInfo<TcpClientT, TimerInterval>* pConnInfo = 
             reinterpret_cast<ConnectionInfo<TcpClientT, TimerInterval>*>(pstClient);
 
-        pConnInfo->IdleConnTimerId = PoolObject<Timer<ConnectionInfo<TcpClientT, TimerInterval>*, TimerInterval> >::Instance()
-            .SetTimeout(this, m_IdleConnectionTimeout, pConnInfo);
+        if(m_IdleConnectionTimeout != CONNECTIONPOOL_KEEPCONNECTION)
+        {
+            pConnInfo->IdleConnTimerId = PoolObject<Timer<ConnectionInfo<TcpClientT, TimerInterval>*, TimerInterval> >::Instance()
+                .SetTimeout(this, m_IdleConnectionTimeout, pConnInfo);
+        }
 
         typename ConnectionInfoMap::iterator iter = m_stConnectionMap.find(pConnInfo->stAddress);
         if(iter == m_stConnectionMap.end())
@@ -104,6 +111,18 @@ public:
         }
         else
             iter->second.push_front(pConnInfo);
+    }
+
+    void Erase(TcpClientT* pstClient)
+    {
+        ConnectionInfo<TcpClientT, TimerInterval>* pConnInfo = 
+            reinterpret_cast<ConnectionInfo<TcpClientT, TimerInterval>*>(pstClient);
+
+        if(pConnInfo->stClient.IsConnected())
+            pConnInfo->stClient.Disconnect();
+
+        delete pConnInfo;
+        --m_ConnectionCount;
     }
 
     void OnTimeout(ConnectionInfo<TcpClientT, TimerInterval>* pConnInfo)
@@ -123,7 +142,8 @@ public:
         }
 
         delete pConnInfo;
-        --m_ConnectionCount;
+        if(m_ConnectionCount > 0)
+            --m_ConnectionCount;
     }
 
     inline void SetMaxConnection(uint32_t max)
@@ -134,6 +154,27 @@ public:
     inline void SetIdleTimeout(uint32_t timeout)
     {
         m_IdleConnectionTimeout = timeout;
+    }
+
+    void Dump(std::string& strDump)
+    {
+        strDump.append((boost::format("Connection Count: %u\n") % m_ConnectionCount).str());
+        strDump.append((boost::format("Max Connection Count: %u\n") % m_MaxConnection).str());
+        strDump.append("---------------------------------------------------------\n");
+        for(typename ConnectionInfoMap::iterator iter = m_stConnectionMap.begin();
+            iter != m_stConnectionMap.end();
+            ++iter)
+        {
+            strDump.append((boost::format("[%s:%d]:\n") % inet_ntoa(iter->first.sin_addr) % ntohs(iter->first.sin_port)).str());
+            for(typename ConnectionInfoList::iterator listIter = iter->second.begin();
+                listIter != iter->second.end();
+                ++listIter)
+            {
+                strDump.append((boost::format("    Connect(sock:%d), object: 0x%llx\n")
+                    % (*listIter)->stClient.m_ServerInterface.m_Channel.Socket
+                    % (void*)(*listIter)).str());
+            }
+        }
     }
 
 private:

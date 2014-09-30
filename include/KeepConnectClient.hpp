@@ -85,38 +85,16 @@ public:
 
     int Connect(sockaddr_in& addr)
     {
-        if(this->m_ServerInterface.m_Channel.Socket == -1)
+        if(TcpClient<ServerImplT, ChannelDataT>::Connect(addr) != 0)
             return -1;
 
-        memcpy(&this->m_ServerInterface.m_Channel.Address, &addr, sizeof(sockaddr_in));
-        if(connect(this->m_ServerInterface.m_Channel.Socket, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1 && 
-            errno != EINPROGRESS)
+        int keepalive = 1;
+        if(setsockopt(this->m_ServerInterface.m_Channel.Socket, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(int)) == -1)
         {
-            close(this->m_ServerInterface.m_Channel.Socket);
-            this->m_ServerInterface.m_Channel.Socket = -1;
+            this->Disconnect();
             return -1;
         }
         return 0;
-    }
-
-    void OnWriteable(ServerInterface<ChannelDataT>* pInterface)
-    {
-        EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-        if(scheduler.Update(this, EventScheduler::PollType::POLLIN) == -1)
-            throw InternalException((boost::format("[%s:%d][error] epoll_ctl update sockfd fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
-
-        PoolObject<Timer<void, TimerInterval> >::Instance().Clear(m_TimeoutID);
-        m_Policy.OnConnected();
-
-        LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] connected process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
-
-        this->OnConnected(pInterface->m_Channel);
-
-        LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] connected process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
     }
 
     void OnReadable(ServerInterface<ChannelDataT>* pInterface)
@@ -127,9 +105,6 @@ public:
 
         if(in.GetReadSize() == 0)
         {
-            EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-            scheduler.UnRegister(this);
-
             this->Disconnect();
 
             LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
@@ -166,9 +141,6 @@ public:
 
     void OnErrorable(ServerInterface<ChannelDataT>* pInterface)
     {
-        EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-        scheduler.UnRegister(this);
-
         this->Disconnect();
 
         LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
@@ -181,9 +153,8 @@ public:
                                 inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
                                 ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
-        PoolObject<Timer<void, TimerInterval> >::Instance().Clear(m_TimeoutID);
-
         m_Policy.OnError();
+        PoolObject<Timer<void, TimerInterval> >::Instance().Clear(m_TimeoutID);
         m_TimeoutID = PoolObject<Timer<void> >::Instance().SetTimeout(
                             boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, PolicyT,
                                         TimerInterval>::OnConnectTimeout, this), 
@@ -192,14 +163,8 @@ public:
 
     void OnConnectTimeout()
     {
-        if(!this->IsConnected())
+        if(!this->IsConnected() && this->Reconnect() != 0)
         {
-            PoolObject<EventScheduler>::Instance().UnRegister(this);
-            this->Disconnect();
-
-            this->Reconnect();
-            PoolObject<EventScheduler>::Instance().Register(this, EventScheduler::PollType::POLLOUT);
-
             m_Policy.OnTimeout();
             m_TimeoutID = PoolObject<Timer<void, TimerInterval> >::Instance().SetTimeout(
                             boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, PolicyT,
@@ -210,16 +175,6 @@ public:
 
     KeepConnectClient()
     {
-        if(this->m_ServerInterface.m_Channel.Socket == -1)
-            return;
-
-        int keepalive = 1;
-        if(setsockopt(this->m_ServerInterface.m_Channel.Socket, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(int)) == -1)
-        {
-            close(this->m_ServerInterface.m_Channel.Socket);
-            this->m_ServerInterface.m_Channel.Socket = -1;
-            return;
-        }
     }
 
 protected:

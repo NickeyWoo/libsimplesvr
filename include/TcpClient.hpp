@@ -13,6 +13,8 @@
 #include <boost/bind.hpp>
 #include "IOBuffer.hpp"
 #include "Server.hpp"
+#include "PoolObject.hpp"
+#include "Pool.hpp"
 #include "EventScheduler.hpp"
 #include "Clock.hpp"
 
@@ -25,15 +27,28 @@ public:
     int Connect(sockaddr_in& addr)
     {
         if(m_ServerInterface.m_Channel.Socket == -1)
-            return -1;
+        {
+#ifdef __USE_GNU
+            m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM|SOCK_CLOEXEC, 0);
+            if(m_ServerInterface.m_Channel.Socket == -1)
+                return -1;
+#else
+            m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM, 0);
+            if(m_ServerInterface.m_Channel.Socket == -1)
+                return -1;
+
+            if(SetCloexecFd(m_ServerInterface.m_Channel.Socket) < 0)
+            {
+                close(m_ServerInterface.m_Channel.Socket);
+                m_ServerInterface.m_Channel.Socket = -1;
+                return -1;
+            }
+#endif
+        }
 
         memcpy(&m_ServerInterface.m_Channel.Address, &addr, sizeof(sockaddr_in));
         if(connect(m_ServerInterface.m_Channel.Socket, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1)
-        {
-            close(m_ServerInterface.m_Channel.Socket);
-            m_ServerInterface.m_Channel.Socket = -1;
             return -1;
-        }
 
         LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] connected process.") %
                                 inet_ntoa(addr.sin_addr) %
@@ -45,8 +60,13 @@ public:
                                 inet_ntoa(addr.sin_addr) %
                                 ntohs(addr.sin_port)).str().c_str());
 
-        EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-        return scheduler.Register(this, EventScheduler::PollType::POLLIN);
+        if(Pool::Instance().IsStartup())
+        {
+            EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
+            return scheduler.Register(this, EventScheduler::PollType::POLLIN);
+        }
+        else
+            return 0;
     }
 
     inline void Close()
@@ -57,8 +77,11 @@ public:
 
     void Disconnect()
     {
-        PoolObject<EventScheduler>::Instance().UnRegister(this);
+        if(Pool::Instance().IsStartup())
+            PoolObject<EventScheduler>::Instance().UnRegister(this);
+
         Shutdown(SHUT_RDWR);
+        Close();
     }
 
     void OnWriteable(ServerInterface<ChannelDataT>* pInterface)
@@ -84,6 +107,7 @@ public:
             LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
                                     inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
                                     ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+
         }
         else
         {
@@ -117,22 +141,7 @@ public:
     // tcp client interface
     TcpClient()
     {
-#ifdef __USE_GNU
-        m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM|SOCK_CLOEXEC, 0);
-        if(m_ServerInterface.m_Channel.Socket == -1)
-            return;
-#else
-        m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM, 0);
-        if(m_ServerInterface.m_Channel.Socket == -1)
-            return;
-
-        if(SetCloexecFd(m_ServerInterface.m_Channel.Socket) < 0)
-        {
-            close(m_ServerInterface.m_Channel.Socket);
-            m_ServerInterface.m_Channel.Socket = -1;
-            return;
-        }
-#endif
+        m_ServerInterface.m_Channel.Socket = -1;
 
         m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
         m_ServerInterface.m_ErrorCallback = boost::bind(&ServerImplT::OnErrorable, reinterpret_cast<ServerImplT*>(this), _1);
@@ -171,6 +180,7 @@ public:
 
         if(info.tcpi_state == TCP_ESTABLISHED)
             return true;
+
         return false;
     }
 
@@ -181,11 +191,11 @@ public:
 
     int Reconnect(sockaddr_in& addr)
     {
-        if(IsConnected())
-            return 0;
+        Disconnect();
 
         if(Connect(addr) != 0)
             return -1;
+
         return 0;
     }
 

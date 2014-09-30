@@ -88,6 +88,12 @@ public:
     {
     }
 
+    void Clear()
+    {
+        m_stServicesMap.clear();
+        m_dwTotalQuotas = 0;
+    }
+
     void AddServicePoint(sockaddr_in* pAddr, uint32_t dwQuotas)
     {
         ServicePoint point;
@@ -131,6 +137,8 @@ public:
 
         boost::regex stIPPortExpression("^([0-9\\.]+)[ \t]+([0-9]+)[ \t]+([0-9]+)$");
         boost::regex stCommentExpression("#.*$");
+
+        m_stServicesMap.clear();
 
         std::list<std::string> vLines;
         boost::algorithm::split(vLines, strContent, boost::algorithm::is_any_of("\n"));
@@ -229,6 +237,17 @@ public:
             }
             dwSeed -= iter->second.dwRealQuotas;
         }
+    }
+
+    void EraseServicePoint(sockaddr_in* pstAddress)
+    {
+        if(!pstAddress) return;
+        PointDictionary::iterator iter = m_stServicesMap.find(*pstAddress);
+        if(iter == m_stServicesMap.end())
+            return;
+
+        m_dwTotalQuotas -= iter->second.dwRealQuotas;
+        m_stServicesMap.erase(iter);
     }
 
     void Failure(sockaddr_in* pstAddress)

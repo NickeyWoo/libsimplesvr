@@ -30,7 +30,6 @@ private:
     std::string m_ErrorMessage;
 };
 
-
 template<typename ChannelDataT>
 class ServerInterface
 {
@@ -49,12 +48,20 @@ public:
     {
         m_ErrorCallback(this);
     }
-
+    
     boost::function<void(ServerInterface<ChannelDataT>*)> m_ReadableCallback;
     boost::function<void(ServerInterface<ChannelDataT>*)> m_WriteableCallback;
     boost::function<void(ServerInterface<ChannelDataT>*)> m_ErrorCallback;
     Channel<ChannelDataT> m_Channel;
 };
+
+template<typename ChannelDataT>
+ServerInterface<ChannelDataT>* GetServerInterface(Channel<ChannelDataT>* pstChannel)
+{
+    char* pInterface = reinterpret_cast<char*>(pstChannel);
+    size_t offset = offsetof(ServerInterface<ChannelDataT>, m_Channel);
+    return reinterpret_cast<ServerInterface<ChannelDataT>*>(pInterface - offset);
+}
 
 int SetCloexecFd(int fd);
 

@@ -32,7 +32,6 @@ extern const char* safe_strerror(int error);
             printf(__VA_ARGS__);                                                                \
             printf("\n");                                                                       \
             PoolObject< ::Log>::Instance().Write(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);\
-            PoolObject< ::Log>::Instance().Flush();                                             \
         }
 
     #define TRACE_LOG(...)                                                                      \
@@ -52,18 +51,9 @@ extern const char* safe_strerror(int error);
 
 #else
     #define LOG(...)                                                                            \
-        PoolObject< ::Log>::Instance().Write(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);    \
-        PoolObject< ::Log>::Instance().Flush();
+        PoolObject< ::Log>::Instance().Write(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
 
     #define TRACE_LOG(...)
-#endif
-
-#ifndef MAX_LOGFILE_SIZE
-    #define MAX_LOGFILE_SIZE    4*1024*1024
-#endif
-
-#ifndef MAX_LOGFILE_COUNT
-    #define MAX_LOGFILE_COUNT   10
 #endif
 
 class Log :

@@ -10,8 +10,7 @@
 
 #include <boost/function.hpp>
 
-template<typename T>
-class ServerInterface;
+extern const char* safe_strerror(int error);
 
 template<typename ChannelDataT>
 struct Channel {
@@ -24,10 +23,17 @@ struct Channel {
     {
     }
 
-    ServerInterface<ChannelDataT>* GetInterface()
+    int GetErrorCode()
     {
-        char* pInterface = reinterpret_cast<char*>(this);
-        return reinterpret_cast<ServerInterface<ChannelDataT>*>(pInterface - 3 * sizeof(boost::function<void(ServerInterface<ChannelDataT>*)>));
+        int error = 0;
+        socklen_t len = sizeof(int);
+        getsockopt(Socket, SOL_SOCKET, SO_ERROR, (void *)&error, &len);
+        return error;
+    }
+
+    inline const char* GetError()
+    {
+        return safe_strerror(GetErrorCode());
     }
 };
 template<>
@@ -40,10 +46,17 @@ struct Channel<void> {
     {
     }
 
-    ServerInterface<void>* GetInterface()
+    int GetErrorCode()
     {
-        char* pInterface = reinterpret_cast<char*>(this);
-        return reinterpret_cast<ServerInterface<void>*>(pInterface - 3 * sizeof(boost::function<void(ServerInterface<void>*)>));
+        int error = 0;
+        socklen_t len = sizeof(int);
+        getsockopt(Socket, SOL_SOCKET, SO_ERROR, (void *)&error, &len);
+        return error;
+    }
+
+    inline const char* GetError()
+    {
+        return safe_strerror(GetErrorCode());
     }
 };
 

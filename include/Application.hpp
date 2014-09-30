@@ -179,6 +179,38 @@ public:
         return true;
     }
 
+    bool MakeDir(const char* szDirPath, mode_t mode)
+    {
+        int len = strlen(szDirPath);
+        char* buffer = (char*)malloc(len + 2);
+        memset(buffer, 0, len + 2);
+        strcpy(buffer, szDirPath);
+
+        if(buffer[len - 1] != '/')
+        {
+            buffer[len] = '/';
+            ++len;
+        }
+
+        for(int i=1; i<len; ++i)
+        {
+            if(buffer[i] == '/')
+            {
+                buffer[i] = 0;
+                if(access(buffer, F_OK) != 0)
+                {
+                    if(mkdir(buffer, mode) == -1)
+                    {
+                        free(buffer);
+                        return false;
+                    }
+                }
+                buffer[i] = '/';
+            }
+        }
+        return true;
+    }
+
     template<typename ServerImplT, typename StartupDataT>
     class UdpServerStartup :
         public boost::noncopyable

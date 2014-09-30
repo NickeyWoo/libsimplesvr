@@ -25,6 +25,7 @@
 #include "Log.hpp"
 #include "PoolObject.hpp"
 #include "Pool.hpp"
+#include "Timer.hpp"
 
 pthread_once_t safe_strerror_once = PTHREAD_ONCE_INIT;
 pthread_key_t safe_strerror_key;
@@ -78,10 +79,19 @@ bool Log::Initialize(std::string path)
     if(m_Path.empty())
         m_Path = std::string(".");
 
-    std::string strLog = (boost::format("%s/runlog_%u_0.log") % m_Path % Pool::Instance().GetID()).str();
+    time_t now = time(NULL) / 3600 * 3600;
+    tm now_tm;
+    localtime_r(&now, &now_tm);
+
+    std::string strLog = (boost::format("%s/log%04d%02d%02d%02d.log%u") 
+                                        % m_Path 
+                                        % (now_tm.tm_year+1900) % (now_tm.tm_mon+1) % now_tm.tm_mday % now_tm.tm_hour
+                                        % Pool::Instance().GetID()).str();
     m_File = fopen(strLog.c_str(), "a");
     if(m_File == NULL)
         return false;
+
+    PoolObject<Timer<void> >::Instance().SetTimeout(boost::bind(&Log::Flush, this), 5000);
     return true;
 }
 
@@ -123,34 +133,24 @@ void Log::Write(const char* file, int line, const char* func, const char* szForm
 
 void Log::ShiftLog()
 {
-    int fd = fileno(m_File);
-    if(fd == -1)
+    time_t now = time(NULL) / 3600 * 3600;
+
+    tm now_tm;
+    localtime_r(&now, &now_tm);
+
+    std::string strLog = (boost::format("%s/log%04d%02d%02d%02d.log%u") 
+                                        % m_Path 
+                                        % (now_tm.tm_year+1900)
+                                        % (now_tm.tm_mon+1)
+                                        % now_tm.tm_mday 
+                                        % now_tm.tm_hour
+                                        % Pool::Instance().GetID()).str();
+
+    if(access(strLog.c_str(), W_OK|F_OK) == 0)
         return;
 
-    struct stat buff;
-    if(fstat(fd, &buff) != -1 &&
-        buff.st_size >= MAX_LOGFILE_SIZE)
-    {
-        fflush(m_File);
-        fclose(m_File);
-
-        std::string file;
-        for(int i=MAX_LOGFILE_COUNT-1; i>=0; --i)
-        {
-            file = (boost::format("%s/runlog_%u_%d.log") % m_Path % Pool::Instance().GetID() % i).str();
-            if(0 != access(file.c_str(), R_OK|W_OK))
-                continue;
-
-            if(i == MAX_LOGFILE_COUNT-1)
-                unlink(file.c_str());
-            else
-            {
-                std::string newfile = (boost::format("%s/runlog_%u_%d.log") % m_Path % Pool::Instance().GetID() % (i + 1)).str();
-                rename(file.c_str(), newfile.c_str());
-            }
-        }
-        m_File = fopen(file.c_str(), "a");
-    }
+    fclose(m_File);
+    m_File = fopen(strLog.c_str(), "a");
 }
 
 

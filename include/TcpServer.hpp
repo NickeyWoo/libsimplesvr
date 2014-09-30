@@ -146,8 +146,6 @@ public:
 
     void OnErrorable(ServerInterface<ChannelDataT>* pInterface)
     {
-        this->DisconnectClient(pInterface->m_Channel);
-
         LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
                                 inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
                                 ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
@@ -157,6 +155,8 @@ public:
         LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
                                 inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
                                 ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+
+        this->DisconnectClient(pInterface->m_Channel);
     }
 
     // udp server interface
@@ -212,7 +212,7 @@ public:
 
     void DisconnectClient(ChannelType& channel)
     {
-        ServerInterface<ChannelDataT>* pChannelInterface = channel.GetInterface();
+        ServerInterface<ChannelDataT>* pChannelInterface = GetServerInterface(&channel);
         PoolObject<EventScheduler>::Instance().UnRegister(pChannelInterface);
         shutdown(pChannelInterface->m_Channel.Socket, SHUT_RDWR);
         close(pChannelInterface->m_Channel.Socket);
