@@ -37,4 +37,6 @@ private:
     static std::map<std::string, std::map<std::string, std::string> > m_ConfigMap;
 };
 
+int ReadINIFile(const char* szFile, std::map<std::string, std::map<std::string, std::string> >& stConfigMap);
+
 #endif // define __CONFIGURE_HPP__

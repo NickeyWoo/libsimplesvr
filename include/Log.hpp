@@ -19,7 +19,7 @@ extern const char* safe_strerror(int error);
 
 #ifdef DEBUG
     #define LOG(...)                                                                            \
-        {                                                                                       \
+        do {                                                                                    \
             struct timeval tv;                                                                  \
             gettimeofday(&tv, NULL);                                                            \
             struct tm now;                                                                      \
@@ -31,11 +31,11 @@ extern const char* safe_strerror(int error);
                     __FILE__, __LINE__, __FUNCTION__);                                          \
             printf(__VA_ARGS__);                                                                \
             printf("\n");                                                                       \
-            PoolObject< ::Log>::Instance().Write(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);\
-        }
+            PoolObject< ::SimpleLog>::Instance().Write(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);\
+        } while(0)
 
     #define TRACE_LOG(...)                                                                      \
-        {                                                                                       \
+        do {                                                                                    \
             struct timeval tv;                                                                  \
             gettimeofday(&tv, NULL);                                                            \
             struct tm now;                                                                      \
@@ -47,21 +47,23 @@ extern const char* safe_strerror(int error);
                     __FILE__, __LINE__, __FUNCTION__);                                          \
             printf(__VA_ARGS__);                                                                \
             printf("\n");                                                                       \
-        }
+        } while(0)
 
 #else
     #define LOG(...)                                                                            \
-        PoolObject< ::Log>::Instance().Write(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
+        PoolObject< ::SimpleLog>::Instance().Write(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
 
     #define TRACE_LOG(...)
 #endif
 
-class Log :
+#define LOG_FLUSH_TIMEOUT       1000
+
+class SimpleLog :
     public boost::noncopyable
 {
 public:
-    Log();
-    ~Log();
+    SimpleLog();
+    ~SimpleLog();
 
     bool Initialize(std::string path);
     void Close();

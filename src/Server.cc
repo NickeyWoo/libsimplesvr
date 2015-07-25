@@ -35,13 +35,13 @@ const char* InternalException::what() const throw()
     return m_ErrorMessage.c_str();
 }
 
-int SetCloexecFd(int fd)
+int SetCloexecFd(int fd, int flags)
 {
     int df = fcntl(fd, F_GETFD, 0);
     if(df == -1)
         return -1;
 
-    if(-1 == fcntl(fd, F_SETFD, df | FD_CLOEXEC))
+    if(-1 == fcntl(fd, F_SETFD, df | flags))
         return -1;
 
     return 0;

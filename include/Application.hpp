@@ -8,12 +8,26 @@
 #ifndef __APPLICATION_HPP__
 #define __APPLICATION_HPP__
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <errno.h>
+#include <time.h>
 #include <signal.h>
+#include <ifaddrs.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/select.h>
+
 #include <utility>
 #include <string>
 #include <vector>
 #include <boost/noncopyable.hpp>
-#include <sys/select.h>
+
 #include "Configure.hpp"
 #include "Pool.hpp"
 #include "Log.hpp"
@@ -132,7 +146,15 @@ public:
         if(!stGlobalConfig["concurrency"].empty())
             concurrency = strtoul(stGlobalConfig["concurrency"].c_str(), NULL, 10);
 
-        printf("[%s] startup ...\n", GetName().c_str());
+#ifdef LIBSIMPLESVR_MAX_POOL_SIZE
+        if(concurrency >= LIBSIMPLESVR_MAX_POOL_SIZE)
+        {
+            printf("error: concurrency(%u) size more than LIBSIMPLESVR_MAX_POOL_SIZE(%u)\n", concurrency, LIBSIMPLESVR_MAX_POOL_SIZE);
+            return;
+        }
+#endif
+
+        printf("[%s] startup(pool: %u) ...\n", GetName().c_str(), concurrency);
         Pool& pool = Pool::Instance();
         if(pool.Startup(concurrency) != 0)
             printf("[error] startup fail, %s.\n", safe_strerror(errno));
@@ -177,6 +199,25 @@ public:
         if(fcntl(m_lock, F_SETLK, &stLock) == -1)
             return false;
         return true;
+    }
+
+    size_t GetLocalIp(std::vector<in_addr_t>& stIpVec)
+    {
+        struct ifaddrs* pAddr= NULL;
+        if(-1 != getifaddrs(&pAddr))
+        {
+            while(pAddr != NULL)
+            {
+                if(pAddr->ifa_addr->sa_family == AF_INET)
+                {
+                    sockaddr_in* pV4 = reinterpret_cast<sockaddr_in*>(pAddr->ifa_addr);
+                    if(pV4->sin_addr.s_addr != 0x0 && pV4->sin_addr.s_addr != 0x100007f)
+                        stIpVec.push_back(pV4->sin_addr.s_addr);
+                }
+                pAddr = pAddr->ifa_next;
+            }
+        }
+        return stIpVec.size();
     }
 
     bool MakeDir(const char* szDirPath, mode_t mode)
@@ -302,7 +343,7 @@ public:
 
         bool OnStartup()
         {
-            return PoolObject<Log>::Instance().Initialize(m_LogPath);
+            return PoolObject<SimpleLog>::Instance().Initialize(m_LogPath);
         }
 
     private:

@@ -75,13 +75,14 @@ private:
     uint32_t m_ConnectTimeout;
 };
 
-template<typename ServerImplT, typename ChannelDataT = void, 
+template<typename ServerImplT, typename ChannelDataT = void, uint32_t CacheSize = 65535,
             typename PolicyT = KeepConnectPolicy<KEEPCONNECTCLIENT_MAXRECONNECTINTERVAL, KEEPCONNECTCLIENT_CONNECTTIMEOUT>,
             int32_t TimerInterval = TIMER_DEFAULT_INTERVAL>
 class KeepConnectClient :
-    public TcpClient<ServerImplT, ChannelDataT>
+    public TcpClient<ServerImplT, ChannelDataT, CacheSize>
 {
 public:
+    typedef Channel<ChannelDataT> ChannelType;
 
     int Connect(sockaddr_in& addr)
     {
@@ -99,65 +100,56 @@ public:
 
     void OnReadable(ServerInterface<ChannelDataT>* pInterface)
     {
-        char buffer[65535];
-        IOBuffer in(buffer, 65535);
-        pInterface->m_Channel >> in;
-
-        if(in.GetReadSize() == 0)
+        int dwRemainSize = CacheSize - this->m_dwAvailableSize;
+        if(dwRemainSize <= 0)
         {
             this->Disconnect();
 
-            LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+            m_Policy.OnDisconnected();
+            m_TimeoutID = PoolObject<Timer<void, TimerInterval> >::Instance().SetTimeout(
+                                boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, CacheSize,
+                                             PolicyT, TimerInterval>::OnConnectTimeout, this), 
+                                m_Policy.GetTimeout());
 
-            this->OnDisconnected(pInterface->m_Channel);
+            throw InternalException((boost::format("[%s:%d][error] package cache is full.") % __FILE__ % __LINE__).str().c_str());
+        }
 
-            LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+        IOBuffer ioRecvBuffer(&this->m_cPackageCache[this->m_dwAvailableSize], dwRemainSize);
+        pInterface->m_Channel >> ioRecvBuffer;
+
+        if(ioRecvBuffer.GetReadSize() == 0)
+        {
+            this->Disconnect();
 
             m_Policy.OnDisconnected();
             m_TimeoutID = PoolObject<Timer<void, TimerInterval> >::Instance().SetTimeout(
-                                boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, PolicyT,
-                                            TimerInterval>::OnConnectTimeout, this), 
+                                boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, CacheSize,
+                                             PolicyT, TimerInterval>::OnConnectTimeout, this), 
                                 m_Policy.GetTimeout());
         }
         else
         {
-            m_Policy.OnMessage();
+            this->m_dwAvailableSize += ioRecvBuffer.GetReadSize();
 
-            LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] message process.") % 
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
-
+            IOBuffer in(this->m_cPackageCache, this->m_dwAvailableSize, this->m_dwAvailableSize);
             this->OnMessage(pInterface->m_Channel, in);
 
-            LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] message process.") %
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) % 
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+            this->m_dwAvailableSize = in.GetReadSize() - in.GetReadPosition();
+            if(in.GetReadPosition() > 0 && this->m_dwAvailableSize > 0)
+                memmove(this->m_cPackageCache, &this->m_cPackageCache[in.GetReadPosition()], this->m_dwAvailableSize);
         }
     }
 
     void OnErrorable(ServerInterface<ChannelDataT>* pInterface)
     {
-        this->Disconnect();
-
-        LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
-
         this->OnError(pInterface->m_Channel);
-
-        LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+        this->Disconnect();
 
         m_Policy.OnError();
         PoolObject<Timer<void, TimerInterval> >::Instance().Clear(m_TimeoutID);
         m_TimeoutID = PoolObject<Timer<void> >::Instance().SetTimeout(
-                            boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, PolicyT,
-                                        TimerInterval>::OnConnectTimeout, this), 
+                            boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, CacheSize, 
+                                        PolicyT, TimerInterval>::OnConnectTimeout, this), 
                             m_Policy.GetTimeout());
     }
 
@@ -167,8 +159,8 @@ public:
         {
             m_Policy.OnTimeout();
             m_TimeoutID = PoolObject<Timer<void, TimerInterval> >::Instance().SetTimeout(
-                            boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, PolicyT,
-                                        TimerInterval>::OnConnectTimeout, this), 
+                            boost::bind(&KeepConnectClient<ServerImplT, ChannelDataT, CacheSize, 
+                                        PolicyT, TimerInterval>::OnConnectTimeout, this), 
                             m_Policy.GetTimeout());
         }
     }

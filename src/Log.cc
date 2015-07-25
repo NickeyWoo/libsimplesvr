@@ -63,17 +63,17 @@ const char* safe_strerror(int error)
 #endif
 }
 
-Log::Log() :
+SimpleLog::SimpleLog() :
     m_File(NULL)
 {
 }
 
-Log::~Log()
+SimpleLog::~SimpleLog()
 {
     Close();
 }
 
-bool Log::Initialize(std::string path)
+bool SimpleLog::Initialize(std::string path)
 {
     m_Path = path;
     if(m_Path.empty())
@@ -83,19 +83,25 @@ bool Log::Initialize(std::string path)
     tm now_tm;
     localtime_r(&now, &now_tm);
 
-    std::string strLog = (boost::format("%s/log%04d%02d%02d%02d.log%u") 
-                                        % m_Path 
-                                        % (now_tm.tm_year+1900) % (now_tm.tm_mon+1) % now_tm.tm_mday % now_tm.tm_hour
-                                        % Pool::Instance().GetID()).str();
-    m_File = fopen(strLog.c_str(), "a");
+    char buffer[260];
+    memset(buffer, 0, 260);
+    snprintf(buffer, 259, "%s/log%04d%02d%02d%02d.log%u", 
+                m_Path.c_str(),
+                (now_tm.tm_year+1900),
+                (now_tm.tm_mon+1),
+                now_tm.tm_mday,
+                now_tm.tm_hour,
+                Pool::Instance().GetID());
+
+    m_File = fopen(buffer, "a");
     if(m_File == NULL)
         return false;
 
-    PoolObject<Timer<void> >::Instance().SetTimeout(boost::bind(&Log::Flush, this), 5000);
+    PoolObject<Timer<void> >::Instance().SetTimeout(boost::bind(&SimpleLog::Flush, this), LOG_FLUSH_TIMEOUT);
     return true;
 }
 
-void Log::Close()
+void SimpleLog::Close()
 {
     if(m_File)
     {
@@ -104,12 +110,14 @@ void Log::Close()
     }
 }
 
-void Log::Flush()
+void SimpleLog::Flush()
 {
     fflush(m_File);
+
+    PoolObject<Timer<void> >::Instance().SetTimeout(boost::bind(&SimpleLog::Flush, this), LOG_FLUSH_TIMEOUT);
 }
 
-void Log::Write(const char* file, int line, const char* func, const char* szFormat, ...)
+void SimpleLog::Write(const char* file, int line, const char* func, const char* szFormat, ...)
 {
     if(m_File == NULL)
         return;
@@ -131,26 +139,28 @@ void Log::Write(const char* file, int line, const char* func, const char* szForm
     ShiftLog();
 }
 
-void Log::ShiftLog()
+void SimpleLog::ShiftLog()
 {
     time_t now = time(NULL) / 3600 * 3600;
 
     tm now_tm;
     localtime_r(&now, &now_tm);
 
-    std::string strLog = (boost::format("%s/log%04d%02d%02d%02d.log%u") 
-                                        % m_Path 
-                                        % (now_tm.tm_year+1900)
-                                        % (now_tm.tm_mon+1)
-                                        % now_tm.tm_mday 
-                                        % now_tm.tm_hour
-                                        % Pool::Instance().GetID()).str();
+    char buffer[260];
+    memset(buffer, 0, 260);
+    snprintf(buffer, 259, "%s/log%04d%02d%02d%02d.log%u", 
+                m_Path.c_str(),
+                (now_tm.tm_year+1900),
+                (now_tm.tm_mon+1),
+                now_tm.tm_mday,
+                now_tm.tm_hour,
+                Pool::Instance().GetID());
 
-    if(access(strLog.c_str(), W_OK|F_OK) == 0)
+    if(access(buffer, W_OK|F_OK) == 0)
         return;
 
     fclose(m_File);
-    m_File = fopen(strLog.c_str(), "a");
+    m_File = fopen(buffer, "a");
 }
 
 

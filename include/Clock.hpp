@@ -16,22 +16,33 @@
 #include "PoolObject.hpp"
 
 #ifdef DEBUG
-    #define DEBUG_CLOCK_TRACE(msg)      \
+    #define DEBUG_CLOCK_TRACE(msg)                                                                                          \
         PoolObject<Clock>::Instance().Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
 #else
     #define DEBUG_CLOCK_TRACE(msg)
 #endif
 
 #ifdef LDEBUG
-    #define LDEBUG_CLOCK_TRACE(msg) \
+    #define LDEBUG_CLOCK_TRACE(msg)                                                                                         \
         PoolObject<Clock>::Instance().Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
 #else
     #define LDEBUG_CLOCK_TRACE(msg)
 #endif
 
-#define CLOCK_TRACE(msg)    \
+#define CLOCK_BEGIN(msg)                                                                                                    \
+        PoolObject<Clock>::Instance().Clear();                                                                              \
         PoolObject<Clock>::Instance().Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
-#define CLOCK_CLEAR()   \
+
+#define CLOCK_TIMESPAN()                                                                                                    \
+        PoolObject<Clock>::Instance().Timespan()
+
+#define CLOCK_DUMP()                                                                                                        \
+        PoolObject<Clock>::Instance().Dump()
+
+#define CLOCK_TRACE(msg)                                                                                                    \
+        PoolObject<Clock>::Instance().Tick((boost::format("[%s:%d] %s") % __FUNCTION__ % __LINE__ % msg).str().c_str())
+
+#define CLOCK_CLEAR()                                                                                                       \
         PoolObject<Clock>::Instance().Clear()
 
 class Clock :
@@ -41,11 +52,12 @@ public:
     uint64_t Tick();
     uint64_t Tick(const char* message);
     void Clear();
+    double Timespan();
 
-    void Dump();
+    std::string Dump();
 
 private:
-    std::list<std::pair<std::string, timespec> > m_ClockList;
+    std::list<std::pair<std::string, timeval> > m_ClockList;
 };
 
 #endif // define __CLOCK_HPP__

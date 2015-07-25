@@ -276,7 +276,9 @@ public:
     {
         typename boost::unordered_map<IdT, TimerItem<DataT, IdT, TimeValueT>*>::iterator iter = m_TimerDataMap.find(timerId);
         if(iter == m_TimerDataMap.end())
+        {
             return;
+        }
 
         TimerItem<DataT, IdT, TimeValueT>* pItem = iter->second;
         if(pItem->NextItem)

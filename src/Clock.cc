@@ -21,28 +21,30 @@
 #include <netinet/in.h>
 #include <sys/time.h>
 #include <time.h>
+#include <string>
+#include <boost/format.hpp>
 #include "Clock.hpp"
 
 uint64_t Clock::Tick()
 {
-    timespec ts;
-    if(clock_gettime(CLOCK_REALTIME, &ts) == -1)
+    timeval tv;
+    if(gettimeofday(&tv, NULL) == -1)
         return 0;
-    return ts.tv_sec * 1000000000 + ts.tv_nsec;
+    return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
 uint64_t Clock::Tick(const char* message)
 {
-    timespec ts;
-    if(clock_gettime(CLOCK_REALTIME, &ts) == -1)
+    timeval tv;
+    if(gettimeofday(&tv, NULL) == -1)
         return 0;
     
     if(message)
-        m_ClockList.push_back(std::make_pair(std::string(message), ts));
+        m_ClockList.push_back(std::make_pair(std::string(message), tv));
     else
-        m_ClockList.push_back(std::make_pair(std::string(), ts));
+        m_ClockList.push_back(std::make_pair(std::string(), tv));
 
-    return ts.tv_sec * 1000000000 + ts.tv_nsec;
+    return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
 void Clock::Clear()
@@ -50,19 +52,32 @@ void Clock::Clear()
     m_ClockList.clear();
 }
 
-void Clock::Dump()
+double Clock::Timespan()
 {
-    std::list<std::pair<std::string, timespec> >::iterator iter = m_ClockList.begin();
-    if(iter == m_ClockList.end())
-        return;
+    if(m_ClockList.empty())
+        return 0;
 
-    uint64_t last = iter->second.tv_sec * 1000000000 + iter->second.tv_nsec;
+    timeval tvs = m_ClockList.front().second;
+    timeval tve = m_ClockList.back().second;
+
+    return ((double)(tve.tv_sec*1000000+tve.tv_usec) - (tvs.tv_sec*1000000+tvs.tv_usec)) / 1000;
+}
+
+std::string Clock::Dump()
+{
+    std::list<std::pair<std::string, timeval> >::iterator iter = m_ClockList.begin();
+    if(iter == m_ClockList.end())
+        return std::string();
+
+    std::string strLogInfo;
+    uint64_t last = iter->second.tv_sec * 1000000 + iter->second.tv_usec;
     for(; iter != m_ClockList.end(); ++iter)
     {
-        uint64_t cur = iter->second.tv_sec * 1000000000 + iter->second.tv_nsec;
-        printf("[+%.02fms] %s\n", (double)(cur - last) / 1000000, iter->first.c_str());
+        uint64_t cur = iter->second.tv_sec * 1000000 + iter->second.tv_usec;
+        strLogInfo.append((boost::format("[+%.02fms] %s\n") % ((double)(cur - last) / 1000) % iter->first).str());
         last = cur;
     }
+    return strLogInfo;
 }
 
 

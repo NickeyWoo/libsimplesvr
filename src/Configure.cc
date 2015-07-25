@@ -30,14 +30,9 @@
 #include <map>
 #include "Configure.hpp"
 
-std::string Configure::m_ConfigFile;
-std::map<std::string, std::map<std::string, std::string> > Configure::m_ConfigMap;
-
-int Configure::Load(const char* szFile)
+int ReadINIFile(const char* strFile, std::map<std::string, std::map<std::string, std::string> >& stConfigMap)
 {
-    Configure::m_ConfigFile = std::string(szFile);
-
-    int fd = open(Configure::m_ConfigFile.c_str(), O_RDONLY|O_EXCL);
+    int fd = open(strFile, O_RDONLY|O_EXCL);
     if(fd == -1)
         return -1;
 
@@ -48,16 +43,24 @@ int Configure::Load(const char* szFile)
         return -1;
     }
 
-    char* lpConfigBuffer = new char[buf.st_size + 1];
-    if(-1 == read(fd, lpConfigBuffer, buf.st_size))
+    char* lpConfigBuffer = (char*)malloc(buf.st_size + 1);
+    if(lpConfigBuffer == NULL)
     {
-        delete [] lpConfigBuffer;
         close(fd);
         return -1;
     }
+
+    if(-1 == read(fd, lpConfigBuffer, buf.st_size))
+    {
+        free(lpConfigBuffer);
+        close(fd);
+        return -1;
+    }
+
     lpConfigBuffer[buf.st_size] = 0;
     std::string sConfigContent = std::string(lpConfigBuffer);
-    delete [] lpConfigBuffer;
+
+    free(lpConfigBuffer);
     close(fd);
 
     boost::regex stBlockExpression("^\\[([_a-zA-Z0-9]+)\\]$");
@@ -78,8 +81,8 @@ int Configure::Load(const char* szFile)
         if(boost::regex_match(sLine, what, stBlockExpression))
         {
             sBlockKey = what[1];
-            if(Configure::m_ConfigMap.find(sBlockKey) == Configure::m_ConfigMap.end())
-                Configure::m_ConfigMap.insert(std::make_pair(sBlockKey, std::map<std::string, std::string>()));
+            if(stConfigMap.find(sBlockKey) == stConfigMap.end())
+                stConfigMap.insert(std::make_pair(sBlockKey, std::map<std::string, std::string>()));
         }
         else if(boost::regex_match(sLine, what, stKeyValExpression) && !sBlockKey.empty())
         {
@@ -87,14 +90,22 @@ int Configure::Load(const char* szFile)
             std::string sVal = what[2].str();
             boost::algorithm::trim(sKey);
             boost::algorithm::trim(sVal);
-            Configure::m_ConfigMap[sBlockKey][sKey] = sVal;
+            stConfigMap[sBlockKey][sKey] = sVal;
         }
         else
         {
         }
     }
-
     return 0;
+}
+
+std::string Configure::m_ConfigFile;
+std::map<std::string, std::map<std::string, std::string> > Configure::m_ConfigMap;
+
+int Configure::Load(const char* szFile)
+{
+    Configure::m_ConfigFile = std::string(szFile);
+    return ReadINIFile(szFile, Configure::m_ConfigMap);
 }
 
 

@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include <utility>
 #include <string>
@@ -54,12 +55,12 @@ public:
                 point.dwCurrentQuotas = 1;
             else if(dLostRate < 0.0005)
             {
-                uint32_t quotas = point.dwCurrentQuotas + point.dwMaxQuotas * 0.2;
+                uint32_t quotas = (uint32_t)(point.dwCurrentQuotas + point.dwMaxQuotas * 0.2);
                 point.dwCurrentQuotas = quotas > point.dwMaxQuotas ? point.dwMaxQuotas : quotas;
             }
             else
             {
-                uint32_t quotas = point.dwCurrentQuotas + point.dwMaxQuotas * 0.05;
+                uint32_t quotas = (uint32_t)(point.dwCurrentQuotas + point.dwMaxQuotas * 0.05);
                 point.dwCurrentQuotas = quotas > point.dwMaxQuotas ? point.dwMaxQuotas : quotas;
             }
         }
@@ -219,7 +220,7 @@ public:
 
         // Weighted Round Robin Balancing
         srand(now);
-        uint32_t dwSeed = floor((double)(m_dwTotalQuotas + 1) * rand() / RAND_MAX);
+        uint32_t dwSeed = (uint32_t)floor((double)(m_dwTotalQuotas + 1) * rand() / RAND_MAX);
 
         for(PointDictionary::iterator iter = m_stServicesMap.begin();
             iter != m_stServicesMap.end();
@@ -272,8 +273,33 @@ public:
         ++iter->second.dwRecvCount;
     }
 
-private:
     typedef std::map<sockaddr_in, ServicePoint, MemCompare<sockaddr_in> > PointDictionary;
+    typedef std::map<sockaddr_in, ServicePoint, MemCompare<sockaddr_in> >::iterator Iterator;
+
+    size_t GetSize()
+    {
+        return m_stServicesMap.size();
+    }
+
+    Iterator GetIterator()
+    {
+        return m_stServicesMap.begin();
+    }
+
+    ServicePoint* Next(Iterator& iter, ServicePoint* pPoint)
+    {
+        if(!pPoint) return NULL;
+        if(iter != m_stServicesMap.end())
+        {
+            *pPoint = iter->second;
+
+            ++iter;
+            return pPoint;
+        }
+        return NULL;
+    }
+
+private:
 
     uint32_t m_dwTotalQuotas;
     time_t m_LastTimestamp;

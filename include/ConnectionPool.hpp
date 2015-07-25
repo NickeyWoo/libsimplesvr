@@ -8,6 +8,7 @@
 #ifndef __CONNECTIONPOOL_HPP__
 #define __CONNECTIONPOOL_HPP__
 
+#include <sys/stat.h>
 #include <pthread.h>
 #include <utility>
 #include <string>
@@ -31,6 +32,9 @@
 #define CONNECTIONPOOL_IDLE_TIMEOUT         300000      // 5 min timeout
 #define CONNECTIONPOOL_KEEPCONNECTION       ((size_t)0)
 
+#define CONNECTIONINFO_FLAGS_ACTIVE         0x1
+#define CONNECTIONINFO_FLAGS_MASKS          0xFFFFFFFF
+
 template<typename TcpClientT, int TimerInterval>
 struct ConnectionInfo
 {
@@ -38,7 +42,108 @@ struct ConnectionInfo
     sockaddr_in stAddress;
     typename Timer<ConnectionInfo<TcpClientT, TimerInterval>*, 
         TimerInterval>::TimerID IdleConnTimerId;
+    uint32_t dwFlags;
+
+    ConnectionInfo(sockaddr_in& addr) :
+        stAddress(addr),
+        dwFlags(0)
+    {
+    }
+
+    ~ConnectionInfo()
+    {
+        if(stClient.IsConnected())
+            stClient.Disconnect();
+    }
 };
+
+#ifdef _mysql_h
+template<int TimerInterval>
+struct ConnectionInfo<MYSQL, TimerInterval>
+{
+    MYSQL stClient;
+    sockaddr_in stAddress;
+    typename Timer<ConnectionInfo<MYSQL, TimerInterval>*, 
+        TimerInterval>::TimerID IdleConnTimerId;
+    uint32_t dwFlags;
+
+    ConnectionInfo(sockaddr_in& addr) :
+        stAddress(addr),
+        dwFlags(0)
+    {
+        mysql_init(&stClient);
+    }
+
+    ~ConnectionInfo()
+    {
+        mysql_close(&stClient);
+    }
+};
+#endif // _mysql_h
+
+#ifdef __HIREDIS_H
+struct REDIS {
+    redisContext* pRedisCxt;
+
+    inline redisContext* GetContext()
+    {
+        return pRedisCxt;
+    }
+
+    inline operator redisContext* ()
+    {
+        return pRedisCxt;
+    }
+
+    inline int GetErrno()
+    {
+        if(pRedisCxt == NULL)
+            return REDIS_ERR_IO;
+        return pRedisCxt->err;
+    }
+
+    inline const char* GetError()
+    {
+        if(pRedisCxt == NULL)
+            return "redis context uninitialized";
+        return pRedisCxt->errstr;
+    }
+
+    inline int ConnectWithTimeout(sockaddr_in& addr, timeval& tv)
+    {
+        if(pRedisCxt)
+            redisFree(pRedisCxt);
+
+        pRedisCxt = redisConnectWithTimeout(inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), tv);
+        if(pRedisCxt == NULL)
+            return -1;
+        return 0;
+    }
+};
+
+template<int TimerInterval>
+struct ConnectionInfo<REDIS, TimerInterval>
+{
+    REDIS stClient;
+    sockaddr_in stAddress;
+    typename Timer<ConnectionInfo<REDIS, TimerInterval>*, 
+        TimerInterval>::TimerID IdleConnTimerId;
+    uint32_t dwFlags;
+
+    ConnectionInfo(sockaddr_in& addr) :
+        stAddress(addr),
+        dwFlags(0)
+    {
+        stClient.pRedisCxt = NULL;
+    }
+
+    ~ConnectionInfo()
+    {
+        if(stClient.pRedisCxt)
+            redisFree(stClient.pRedisCxt);
+    }
+};
+#endif // __HIREDIS_H
 
 template<typename TcpClientT, 
             size_t IdleConnTimeout = CONNECTIONPOOL_IDLE_TIMEOUT, size_t MaxConn = CONNECTIONPOOL_MAXCONNECTION,
@@ -63,6 +168,7 @@ public:
             if(pNewConnInfo == NULL)
                 return -1;
 
+            pNewConnInfo->dwFlags |= CONNECTIONINFO_FLAGS_ACTIVE;
             *ppstClient = &pNewConnInfo->stClient;
         }
         else
@@ -74,6 +180,7 @@ public:
                 if(pNewConnInfo == NULL)
                     return -1;
 
+                pNewConnInfo->dwFlags |= CONNECTIONINFO_FLAGS_ACTIVE;
                 *ppstClient = &pNewConnInfo->stClient;
             }
             else
@@ -84,6 +191,7 @@ public:
                 PoolObject<Timer<ConnectionInfo<TcpClientT, TimerInterval>*, TimerInterval> >::Instance()
                     .Clear(pConnInfo->IdleConnTimerId);
 
+                pConnInfo->dwFlags |= CONNECTIONINFO_FLAGS_ACTIVE;
                 *ppstClient = &pConnInfo->stClient;
             }
         }
@@ -94,6 +202,11 @@ public:
     {
         ConnectionInfo<TcpClientT, TimerInterval>* pConnInfo = 
             reinterpret_cast<ConnectionInfo<TcpClientT, TimerInterval>*>(pstClient);
+
+        if((pConnInfo->dwFlags & CONNECTIONINFO_FLAGS_ACTIVE) != CONNECTIONINFO_FLAGS_ACTIVE)
+            return;
+
+        pConnInfo->dwFlags &= ~CONNECTIONINFO_FLAGS_ACTIVE;
 
         if(m_IdleConnectionTimeout != CONNECTIONPOOL_KEEPCONNECTION)
         {
@@ -127,9 +240,6 @@ public:
 
     void OnTimeout(ConnectionInfo<TcpClientT, TimerInterval>* pConnInfo)
     {
-        if(pConnInfo->stClient.IsConnected())
-            pConnInfo->stClient.Disconnect();
-
         typename ConnectionInfoMap::iterator iter = m_stConnectionMap.find(pConnInfo->stAddress);
         typename ConnectionInfoList::iterator listIter = iter->second.begin();
         for(; listIter != iter->second.end(); ++listIter)
@@ -170,8 +280,7 @@ public:
                 listIter != iter->second.end();
                 ++listIter)
             {
-                strDump.append((boost::format("    Connect(sock:%d), object: 0x%llx\n")
-                    % (*listIter)->stClient.m_ServerInterface.m_Channel.Socket
+                strDump.append((boost::format("    object: 0x%llx\n")
                     % (void*)(*listIter)).str());
             }
         }
@@ -184,8 +293,8 @@ private:
         if(m_ConnectionCount >= m_MaxConnection)
             return NULL;
 
-        ConnectionInfo<TcpClientT, TimerInterval>* pNewConnInfo = new ConnectionInfo<TcpClientT, TimerInterval>();
-        memcpy(&pNewConnInfo->stAddress, &addr, sizeof(sockaddr_in));
+        ConnectionInfo<TcpClientT, TimerInterval>* pNewConnInfo = 
+            new ConnectionInfo<TcpClientT, TimerInterval>(addr);
 
         ++m_ConnectionCount;
         return pNewConnInfo;

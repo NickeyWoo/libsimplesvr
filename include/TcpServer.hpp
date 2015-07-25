@@ -17,7 +17,7 @@
 
 #define DEFAULT_SOCK_BACKLOG    100
 
-template<typename ServerImplT, typename ChannelDataT = void>
+template<typename ServerImplT, typename ChannelDataT = void, uint32_t CacheSize = 65535>
 class TcpServer
 {
 public:
@@ -91,34 +91,25 @@ public:
             throw InternalException((boost::format("[%s:%d][error] epoll_ctl add new sockfd fail, %s.") % __FILE__ % __LINE__ % safe_strerror(errno)).str().c_str());
         }
 
-        LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] connected process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
-
         this->OnConnected(pChannelInterface->m_Channel);
-
-        LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] connected process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
     }
 
     void OnReadable(ServerInterface<ChannelDataT>* pInterface)
     {
-        char buffer[65535];
-        IOBuffer in(buffer, 65535);
-        pInterface->m_Channel >> in;
-
-        if(in.GetReadSize() == 0)
+        int dwRemainSize = CacheSize - m_dwAvailableSize;
+        if(dwRemainSize <= 0)
         {
-            LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] disconnected process.") %
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+            this->DisconnectClient(pInterface->m_Channel);
 
+            throw InternalException((boost::format("[%s:%d][error] package cache is full.") % __FILE__ % __LINE__).str().c_str());
+        }
+
+        IOBuffer ioRecvBuffer(&m_cPackageCache[m_dwAvailableSize], dwRemainSize);
+        pInterface->m_Channel >> ioRecvBuffer;
+
+        if(ioRecvBuffer.GetReadSize() == 0)
+        {
             this->OnDisconnected(pInterface->m_Channel);
-
-            LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] disconnected process.") %
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
 
             EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
             scheduler.UnRegister(pInterface);
@@ -128,15 +119,14 @@ public:
         }
         else
         {
-            LDEBUG_CLOCK_TRACE((boost::format("being tcp [%s:%d] message process.") % 
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+            m_dwAvailableSize += ioRecvBuffer.GetReadSize();
 
+            IOBuffer in(m_cPackageCache, m_dwAvailableSize, m_dwAvailableSize);
             this->OnMessage(pInterface->m_Channel, in);
 
-            LDEBUG_CLOCK_TRACE((boost::format("end tcp [%s:%d] message process.") %
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) % 
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+            m_dwAvailableSize = in.GetReadSize() - in.GetReadPosition();
+            if(in.GetReadPosition() > 0 && m_dwAvailableSize > 0)
+                memmove(m_cPackageCache, &m_cPackageCache[in.GetReadPosition()], m_dwAvailableSize);
         }
     }
 
@@ -146,21 +136,13 @@ public:
 
     void OnErrorable(ServerInterface<ChannelDataT>* pInterface)
     {
-        LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
-
         this->OnError(pInterface->m_Channel);
-
-        LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
-
         this->DisconnectClient(pInterface->m_Channel);
     }
 
     // udp server interface
-    TcpServer()
+    TcpServer() :
+        m_dwAvailableSize(0)
     {
 #ifdef __USE_GNU
         m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM|SOCK_CLOEXEC, 0);
@@ -187,7 +169,7 @@ public:
             return;
         }
 
-        m_ServerInterface.m_ReadableCallback = boost::bind(&TcpServer<ServerImplT, ChannelDataT>::OnAcceptable, this, _1);
+        m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnAcceptable, this, _1);
     }
 
     virtual ~TcpServer()
@@ -212,6 +194,8 @@ public:
 
     void DisconnectClient(ChannelType& channel)
     {
+        this->OnDisconnected(channel);
+
         ServerInterface<ChannelDataT>* pChannelInterface = GetServerInterface(&channel);
         PoolObject<EventScheduler>::Instance().UnRegister(pChannelInterface);
         shutdown(pChannelInterface->m_Channel.Socket, SHUT_RDWR);
@@ -219,7 +203,9 @@ public:
         delete pChannelInterface;
     }
 
-    ServerInterface<ChannelDataT> m_ServerInterface;
+    ServerInterface<ChannelDataT>   m_ServerInterface;
+    uint32_t                        m_dwAvailableSize;
+    char                            m_cPackageCache[CacheSize];
 };
 
 #endif // define __TCPSERVER_HPP__

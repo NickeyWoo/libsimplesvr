@@ -15,10 +15,11 @@
 #include "Server.hpp"
 #include "PoolObject.hpp"
 #include "Pool.hpp"
+#include "Timer.hpp"
 #include "EventScheduler.hpp"
 #include "Clock.hpp"
 
-template<typename ServerImplT, typename ChannelDataT = void>
+template<typename ServerImplT, typename ChannelDataT = void, uint32_t CacheSize = 65535>
 class TcpClient
 {
 public:
@@ -50,15 +51,7 @@ public:
         if(connect(m_ServerInterface.m_Channel.Socket, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1)
             return -1;
 
-        LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] connected process.") %
-                                inet_ntoa(addr.sin_addr) %
-                                ntohs(addr.sin_port)).str().c_str());
-
         this->OnConnected(m_ServerInterface.m_Channel);
-
-        LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] connected process.") %
-                                inet_ntoa(addr.sin_addr) %
-                                ntohs(addr.sin_port)).str().c_str());
 
         if(Pool::Instance().IsStartup())
         {
@@ -69,6 +62,72 @@ public:
             return 0;
     }
 
+    int Connect(sockaddr_in& addr, timeval* timeout)
+    {
+        if(timeout == NULL)
+            return -1;
+
+        if(m_ServerInterface.m_Channel.Socket == -1)
+        {
+#ifdef __USE_GNU
+            m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0);
+            if(m_ServerInterface.m_Channel.Socket == -1)
+                return -1;
+#else
+            m_ServerInterface.m_Channel.Socket = socket(PF_INET, SOCK_STREAM, 0);
+            if(m_ServerInterface.m_Channel.Socket == -1)
+                return -1;
+
+            if(SetCloexecFd(m_ServerInterface.m_Channel.Socket, FD_CLOEXEC | O_NONBLOCK) < 0)
+            {
+                close(m_ServerInterface.m_Channel.Socket);
+                m_ServerInterface.m_Channel.Socket = -1;
+                return -1;
+            }
+#endif
+        }
+
+        memcpy(&m_ServerInterface.m_Channel.Address, &addr, sizeof(sockaddr_in));
+        if(connect(m_ServerInterface.m_Channel.Socket, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1 && 
+           errno != EINPROGRESS)
+            return -1;
+
+        EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
+        if(Pool::Instance().IsStartup())
+        {
+            m_AsyncConnectTimerId = PoolObject<Timer<void> >::Instance().SetTimeout(
+                                        boost::bind(&ServerImplT::OnAsyncConnectTimout, this), 
+                                        (timeout->tv_sec*1000 + timeout->tv_usec/1000));
+            return scheduler.Register(this, EventScheduler::PollType::POLLOUT);
+        }
+        else
+        {
+            int iRet = scheduler.Wait(&m_ServerInterface, EventScheduler::PollType::POLLOUT, timeout);
+            if(iRet == -1)
+                return -1;
+
+            if(iRet == 0)
+            {
+                this->OnConnectTimout(m_ServerInterface.m_Channel);
+                Disconnect();
+            }
+            else
+            {
+                int errinfo;
+                socklen_t errlen;
+                if(-1 == getsockopt(m_ServerInterface.m_Channel.Socket, SOL_SOCKET, SO_ERROR, &errinfo, &errlen) ||
+                   errinfo != 0)
+                {
+                    this->OnConnectTimout(m_ServerInterface.m_Channel);
+                    Disconnect();
+                }
+                else
+                    this->OnConnected(m_ServerInterface.m_Channel);
+            }
+        }
+        return 0;
+    }
+
     inline void Close()
     {
         close(m_ServerInterface.m_Channel.Socket);
@@ -77,6 +136,14 @@ public:
 
     void Disconnect()
     {
+        if(m_AsyncConnectTimerId != 0)
+        {
+            PoolObject<Timer<void> >::Instance().Clear(m_AsyncConnectTimerId);
+            m_AsyncConnectTimerId = 0;
+        }
+
+        this->OnDisconnected(m_ServerInterface.m_Channel);
+
         if(Pool::Instance().IsStartup())
             PoolObject<EventScheduler>::Instance().UnRegister(this);
 
@@ -86,68 +153,77 @@ public:
 
     void OnWriteable(ServerInterface<ChannelDataT>* pInterface)
     {
+        int errinfo;
+        socklen_t errlen;
+        if(-1 == getsockopt(pInterface->m_Channel.Socket, SOL_SOCKET, SO_ERROR, &errinfo, &errlen) ||
+           errinfo != 0)
+        {
+            this->OnConnectTimout(pInterface->m_Channel);
+            Disconnect();
+        }
+        else
+        {
+            PoolObject<Timer<void> >::Instance().Clear(m_AsyncConnectTimerId);
+            m_AsyncConnectTimerId = 0;
+
+            this->OnConnected(pInterface->m_Channel);
+            PoolObject<EventScheduler>::Instance().Update(this, EventScheduler::PollType::POLLIN);
+        }
     }
 
     void OnReadable(ServerInterface<ChannelDataT>* pInterface)
     {
-        char buffer[65535];
-        IOBuffer in(buffer, 65535);
-        pInterface->m_Channel >> in;
-
-        if(in.GetReadSize() == 0)
+        int dwRemainSize = CacheSize - m_dwAvailableSize;
+        if(dwRemainSize <= 0)
         {
             Disconnect();
 
-            LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+            throw InternalException((boost::format("[%s:%d][error] package cache is full.") % __FILE__ % __LINE__).str().c_str());
+        }
 
-            this->OnDisconnected(pInterface->m_Channel);
+        IOBuffer ioRecvBuffer(&m_cPackageCache[m_dwAvailableSize], dwRemainSize);
+        pInterface->m_Channel >> ioRecvBuffer;
 
-            LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
-
+        if(ioRecvBuffer.GetReadSize() == 0)
+        {
+            Disconnect();
         }
         else
         {
-            LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] message process.") % 
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+            m_dwAvailableSize += ioRecvBuffer.GetReadSize();
 
+            IOBuffer in(m_cPackageCache, m_dwAvailableSize, m_dwAvailableSize);
             this->OnMessage(pInterface->m_Channel, in);
 
-            LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] message process.") %
-                                    inet_ntoa(pInterface->m_Channel.Address.sin_addr) % 
-                                    ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+            m_dwAvailableSize = in.GetReadSize() - in.GetReadPosition();
+            if(in.GetReadPosition() > 0 && m_dwAvailableSize > 0)
+                memmove(m_cPackageCache, &m_cPackageCache[in.GetReadPosition()], m_dwAvailableSize);
         }
     }
 
     void OnErrorable(ServerInterface<ChannelDataT>* pInterface)
     {
-        Disconnect();
-
-        LDEBUG_CLOCK_TRACE((boost::format("being client [%s:%d] disconnected process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
-
         this->OnError(pInterface->m_Channel);
-
-        LDEBUG_CLOCK_TRACE((boost::format("end client [%s:%d] disconnected process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
+        Disconnect();
     }
 
     // tcp client interface
-    TcpClient()
+    TcpClient() :
+        m_dwAvailableSize(0),
+        m_AsyncConnectTimerId(0)
     {
         m_ServerInterface.m_Channel.Socket = -1;
 
+        m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
         m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
         m_ServerInterface.m_ErrorCallback = boost::bind(&ServerImplT::OnErrorable, reinterpret_cast<ServerImplT*>(this), _1);
     }
 
     virtual ~TcpClient()
+    {
+    }
+
+    virtual void OnConnectTimout(ChannelType& channel)
     {
     }
 
@@ -216,7 +292,17 @@ public:
         return shutdown(m_ServerInterface.m_Channel.Socket, how);
     }
 
-    ServerInterface<ChannelDataT> m_ServerInterface;
+    void OnAsyncConnectTimout()
+    {
+        m_AsyncConnectTimerId = 0;
+        this->OnConnectTimout(m_ServerInterface.m_Channel);
+        Disconnect();
+    }
+
+    ServerInterface<ChannelDataT>   m_ServerInterface;
+    uint32_t                        m_dwAvailableSize;
+    char                            m_cPackageCache[CacheSize];
+    typename Timer<void>::TimerID   m_AsyncConnectTimerId;
 };
 
 

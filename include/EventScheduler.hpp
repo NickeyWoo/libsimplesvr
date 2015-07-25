@@ -15,6 +15,8 @@
 #include <list>
 #include <map>
 #include <exception>
+#include <time.h>
+#include <sys/time.h>
 #include <boost/noncopyable.hpp>
 #include <boost/function.hpp>
 #include <boost/bind.hpp>

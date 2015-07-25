@@ -46,18 +46,9 @@ public:
     {
         char buffer[65535];
         IOBuffer in(buffer, 65535);
-
         pInterface->m_Channel >> in;
 
-        LDEBUG_CLOCK_TRACE((boost::format("being udp [%s:%d] message process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
-
         this->OnMessage(pInterface->m_Channel, in);
-
-        LDEBUG_CLOCK_TRACE((boost::format("end udp [%s:%d] message process.") %
-                                inet_ntoa(pInterface->m_Channel.Address.sin_addr) %
-                                ntohs(pInterface->m_Channel.Address.sin_port)).str().c_str());
     }
 
     // udp server interface
