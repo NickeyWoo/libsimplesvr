@@ -34,27 +34,31 @@
 #include "ConnectionPool.hpp"
 #include "Application.hpp"
 
-struct TimerValue {
-    uint32_t dwValue;
-};
-
 class TcpService :
     public TcpServer<TcpService>
 {
 public:
     void OnMessage(ChannelType& channel, IOBuffer& in)
     {
-        LOG("[PID:%u][%s:%d] client message", 
-                Pool::Instance().GetID(),
-                inet_ntoa(channel.Address.sin_addr),
-                ntohs(channel.Address.sin_port));
+        TRACE_LOG("[PID:%u][%s:%d] client message: %s", 
+                  Pool::Instance().GetID(),
+                  inet_ntoa(channel.Address.sin_addr),
+                  ntohs(channel.Address.sin_port), 
+                  in.GetReadBuffer());
+
+        char buffer[4096];
+        IOBuffer out(buffer, 4096);
+        out.Write("resp => ", 8);
+        out.Write(in.GetReadBuffer(), in.GetReadSize());
+        
+        channel << out;
 
         in.ReadSeek(in.GetReadSize());
     }
 
     void OnConnected(ChannelType& channel)
     {
-        LOG("[PID:%u][%s:%d] client connected.",
+        TRACE_LOG("[PID:%u][%s:%d] client connected.",
                 Pool::Instance().GetID(),
                 inet_ntoa(channel.Address.sin_addr),
                 ntohs(channel.Address.sin_port));
@@ -62,19 +66,10 @@ public:
 
     void OnDisconnected(ChannelType& channel)
     {
-        LOG("[PID:%u][%s:%d] disconnect client.",
+        TRACE_LOG("[PID:%u][%s:%d] disconnect client.",
                 Pool::Instance().GetID(),
                 inet_ntoa(channel.Address.sin_addr),
                 ntohs(channel.Address.sin_port));
-    }
-
-    void OnMyTimeout(TimerValue* pVal)
-    {
-        ++pVal->dwValue;
-
-        PoolObject<Timer<TimerValue*> >::Instance().SetTimeout(
-            boost::bind(&TcpService::OnMyTimeout, this, _1), 
-            5000, pVal);
     }
 
 };
@@ -89,36 +84,8 @@ public:
         if(!RegisterTcpServer(m_stTcpService, "server_interface"))
             return false;
 
-        PoolObject<Timer<void> >::Instance().SetTimeout(this, 1000);
-
-        m_stValue.dwValue = 0x1234;
-        PoolObject<Timer<TimerValue*> >::Instance().SetTimeout(
-            boost::bind(&TcpService::OnMyTimeout, &m_stTcpService, _1), 
-            5000, &m_stValue);
-
-        Pool::Instance().RegisterStartupCallback(boost::bind(&MyApp::OnPoolStartup, this));
-
-        printf("%s\n", __FUNCTION__);
         return true;
     }
-
-    bool OnPoolStartup()
-    {
-        if(Pool::Instance().GetID() == 1)
-            printf("%s\n", __FUNCTION__);
-        else
-            printf("abc\n");
-        return true;
-    }
-
-    void OnTimeout()
-    {
-        printf("time:%u\n", (uint32_t)time(NULL));
-
-        PoolObject<Timer<void> >::Instance().SetTimeout(this, 1000);
-    }
-
-    TimerValue m_stValue;
 
     TcpService m_stTcpService;
 };

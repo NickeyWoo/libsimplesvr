@@ -154,7 +154,6 @@ public:
         }
 #endif
 
-        printf("[%s] startup(pool: %u) ...\n", GetName().c_str(), concurrency);
         Pool& pool = Pool::Instance();
         if(pool.Startup(concurrency) != 0)
             printf("[error] startup fail, %s.\n", safe_strerror(errno));
@@ -274,7 +273,7 @@ public:
                 return false;
 
             EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-            return (scheduler.Register(&PoolObject<ServerImplT>::Instance(), EventScheduler::PollType::POLLIN) == 0);
+            return (scheduler.Register(&PoolObject<ServerImplT>::Instance(), EventScheduler::PollType::IN) == 0);
         }
     
     private:
@@ -300,7 +299,7 @@ public:
         bool OnStartup()
         {
             EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-            return (scheduler.Register(m_pServer, EventScheduler::PollType::POLLIN) == 0);
+            return (scheduler.Register(m_pServer, EventScheduler::PollType::IN) == 0);
         }
     
     private:

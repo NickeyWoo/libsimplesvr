@@ -18,12 +18,13 @@
 #include "Timer.hpp"
 #include "EventScheduler.hpp"
 #include "Clock.hpp"
+#include "TcpServer.hpp"
 
 template<typename ServerImplT, typename ChannelDataT = void, uint32_t CacheSize = 65535>
 class TcpClient
 {
 public:
-    typedef Channel<ChannelDataT> ChannelType;
+    typedef Channel<TcpChannelCache<ChannelDataT, CacheSize> > ChannelType;
 
     int Connect(sockaddr_in& addr)
     {
@@ -51,12 +52,14 @@ public:
         if(connect(m_ServerInterface.m_Channel.Socket, (sockaddr*)&addr, sizeof(sockaddr_in)) == -1)
             return -1;
 
+        m_ServerInterface.m_Channel.Data.dwCacheAvailableSize = 0;
+
         this->OnConnected(m_ServerInterface.m_Channel);
 
         if(Pool::Instance().IsStartup())
         {
             EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
-            return scheduler.Register(this, EventScheduler::PollType::POLLIN);
+            return scheduler.Register(this, EventScheduler::PollType::IN);
         }
         else
             return 0;
@@ -92,17 +95,19 @@ public:
            errno != EINPROGRESS)
             return -1;
 
+        m_ServerInterface.m_Channel.Data.dwCacheAvailableSize = 0;
+
         EventScheduler& scheduler = PoolObject<EventScheduler>::Instance();
         if(Pool::Instance().IsStartup())
         {
             m_AsyncConnectTimerId = PoolObject<Timer<void> >::Instance().SetTimeout(
                                         boost::bind(&ServerImplT::OnAsyncConnectTimout, this), 
                                         (timeout->tv_sec*1000 + timeout->tv_usec/1000));
-            return scheduler.Register(this, EventScheduler::PollType::POLLOUT);
+            return scheduler.Register(this, EventScheduler::PollType::OUT);
         }
         else
         {
-            int iRet = scheduler.Wait(&m_ServerInterface, EventScheduler::PollType::POLLOUT, timeout);
+            int iRet = scheduler.Wait(&m_ServerInterface, EventScheduler::PollType::OUT, timeout);
             if(iRet == -1)
                 return -1;
 
@@ -151,7 +156,7 @@ public:
         Close();
     }
 
-    void OnWriteable(ServerInterface<ChannelDataT>* pInterface)
+    void OnWriteable(ServerInterface<TcpChannelCache<ChannelDataT, CacheSize> >* pInterface)
     {
         int errinfo;
         socklen_t errlen;
@@ -167,13 +172,13 @@ public:
             m_AsyncConnectTimerId = 0;
 
             this->OnConnected(pInterface->m_Channel);
-            PoolObject<EventScheduler>::Instance().Update(this, EventScheduler::PollType::POLLIN);
+            PoolObject<EventScheduler>::Instance().Update(this, EventScheduler::PollType::IN);
         }
     }
 
-    void OnReadable(ServerInterface<ChannelDataT>* pInterface)
+    void OnReadable(ServerInterface<TcpChannelCache<ChannelDataT, CacheSize> >* pInterface)
     {
-        int dwRemainSize = CacheSize - m_dwAvailableSize;
+        int dwRemainSize = CacheSize - pInterface->m_Channel.Data.dwCacheAvailableSize;
         if(dwRemainSize <= 0)
         {
             Disconnect();
@@ -181,7 +186,8 @@ public:
             throw InternalException((boost::format("[%s:%d][error] package cache is full.") % __FILE__ % __LINE__).str().c_str());
         }
 
-        IOBuffer ioRecvBuffer(&m_cPackageCache[m_dwAvailableSize], dwRemainSize);
+        IOBuffer ioRecvBuffer(&pInterface->m_Channel.Data.cPackageCache[pInterface->m_Channel.Data.dwCacheAvailableSize], 
+                              dwRemainSize);
         pInterface->m_Channel >> ioRecvBuffer;
 
         if(ioRecvBuffer.GetReadSize() == 0)
@@ -190,18 +196,24 @@ public:
         }
         else
         {
-            m_dwAvailableSize += ioRecvBuffer.GetReadSize();
+            pInterface->m_Channel.Data.dwCacheAvailableSize += ioRecvBuffer.GetReadSize();
 
-            IOBuffer in(m_cPackageCache, m_dwAvailableSize, m_dwAvailableSize);
+            IOBuffer in(pInterface->m_Channel.Data.cPackageCache, 
+                        pInterface->m_Channel.Data.dwCacheAvailableSize,
+                        pInterface->m_Channel.Data.dwCacheAvailableSize);
             this->OnMessage(pInterface->m_Channel, in);
 
-            m_dwAvailableSize = in.GetReadSize() - in.GetReadPosition();
-            if(in.GetReadPosition() > 0 && m_dwAvailableSize > 0)
-                memmove(m_cPackageCache, &m_cPackageCache[in.GetReadPosition()], m_dwAvailableSize);
+            pInterface->m_Channel.Data.dwCacheAvailableSize = in.GetReadSize() - in.GetReadPosition();
+            if(in.GetReadPosition() > 0 && pInterface->m_Channel.Data.dwCacheAvailableSize > 0)
+            {
+                memmove(pInterface->m_Channel.Data.cPackageCache, 
+                        &pInterface->m_Channel.Data.cPackageCache[in.GetReadPosition()],
+                        pInterface->m_Channel.Data.dwCacheAvailableSize);
+            }
         }
     }
 
-    void OnErrorable(ServerInterface<ChannelDataT>* pInterface)
+    void OnErrorable(ServerInterface<TcpChannelCache<ChannelDataT, CacheSize> >* pInterface)
     {
         this->OnError(pInterface->m_Channel);
         Disconnect();
@@ -209,10 +221,10 @@ public:
 
     // tcp client interface
     TcpClient() :
-        m_dwAvailableSize(0),
         m_AsyncConnectTimerId(0)
     {
         m_ServerInterface.m_Channel.Socket = -1;
+        m_ServerInterface.m_Channel.Data.dwCacheAvailableSize = 0;
 
         m_ServerInterface.m_WriteableCallback = boost::bind(&ServerImplT::OnWriteable, reinterpret_cast<ServerImplT*>(this), _1);
         m_ServerInterface.m_ReadableCallback = boost::bind(&ServerImplT::OnReadable, reinterpret_cast<ServerImplT*>(this), _1);
@@ -299,10 +311,8 @@ public:
         Disconnect();
     }
 
-    ServerInterface<ChannelDataT>   m_ServerInterface;
-    uint32_t                        m_dwAvailableSize;
-    char                            m_cPackageCache[CacheSize];
-    typename Timer<void>::TimerID   m_AsyncConnectTimerId;
+    ServerInterface<TcpChannelCache<ChannelDataT, CacheSize> >  m_ServerInterface;
+    typename Timer<void>::TimerID                               m_AsyncConnectTimerId;
 };
 
 

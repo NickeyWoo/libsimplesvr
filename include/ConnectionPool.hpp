@@ -52,8 +52,7 @@ struct ConnectionInfo
 
     ~ConnectionInfo()
     {
-        if(stClient.IsConnected())
-            stClient.Disconnect();
+        stClient.Disconnect();
     }
 };
 
@@ -254,6 +253,7 @@ public:
         delete pConnInfo;
         if(m_ConnectionCount > 0)
             --m_ConnectionCount;
+
     }
 
     inline void SetMaxConnection(uint32_t max)

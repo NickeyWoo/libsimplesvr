@@ -218,8 +218,11 @@ public:
                 m_LastTimestamp = now;
         }
 
+        timeval tv;
+        gettimeofday(&tv, NULL);
+        srand(tv.tv_usec);
+
         // Weighted Round Robin Balancing
-        srand(now);
         uint32_t dwSeed = (uint32_t)floor((double)(m_dwTotalQuotas + 1) * rand() / RAND_MAX);
 
         for(PointDictionary::iterator iter = m_stServicesMap.begin();

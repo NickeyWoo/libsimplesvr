@@ -26,10 +26,10 @@ public:
     };
 
     enum {
-        POLLIN = EPOLLIN,
-        POLLOUT = EPOLLOUT,
-        POLLERR = EPOLLERR,
-        POLLHUP = EPOLLHUP
+        IN = EPOLLIN,
+        OUT = EPOLLOUT,
+        ERR = EPOLLERR,
+        HUP = EPOLLHUP
     };
 
     int CreatePoll();

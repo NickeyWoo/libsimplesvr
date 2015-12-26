@@ -36,6 +36,9 @@
 #define CLOCK_TIMESPAN()                                                                                                    \
         PoolObject<Clock>::Instance().Timespan()
 
+#define CLOCK_COMPUTE_TIMESPAN(tvs, tve)                                                                                    \
+        (((double)(tve.tv_sec*1000000+tve.tv_usec) - (tvs.tv_sec*1000000+tvs.tv_usec)) / 1000)
+
 #define CLOCK_DUMP()                                                                                                        \
         PoolObject<Clock>::Instance().Dump()
 

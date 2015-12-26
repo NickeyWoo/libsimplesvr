@@ -34,22 +34,20 @@
 #include "ConnectionPool.hpp"
 #include "Application.hpp"
 
-struct TimerValue {
-    uint32_t dwValue;
-};
-
 class MyTcpClient :
     public TcpClient<MyTcpClient>
 {
 public:
     void OnMessage(ChannelType& channel, IOBuffer& in)
     {
-        LOG("[PID:%u][%s:%d] client message", 
+        LOG("[PID:%u][%s:%d] server message: %s", 
                 Pool::Instance().GetID(),
                 inet_ntoa(channel.Address.sin_addr),
-                ntohs(channel.Address.sin_port));
+                ntohs(channel.Address.sin_port), in.GetReadBuffer());
 
         in.ReadSeek(in.GetReadSize());
+
+        PoolObject<ConnectionPool<MyTcpClient> >::Instance().Detach(this);
     }
 
     void OnConnectTimout(ChannelType& channel)
@@ -66,6 +64,8 @@ public:
                 Pool::Instance().GetID(),
                 inet_ntoa(channel.Address.sin_addr),
                 ntohs(channel.Address.sin_port));
+
+        SendRequest();
     }
 
     void OnDisconnected(ChannelType& channel)
@@ -75,6 +75,19 @@ public:
                 inet_ntoa(channel.Address.sin_addr),
                 ntohs(channel.Address.sin_port));
     }
+
+    void SendRequest()
+    {
+        std::string str = (boost::format("time:%lu") % time(NULL)).str();
+        LOG("send request: %s", str.c_str());
+
+        char buffer[4096];
+        IOBuffer out(buffer, 4096);
+        out.Write(str.c_str(), str.length());
+
+        this->Send(out);
+    }
+
 };
 
 class MyApp :
@@ -85,27 +98,54 @@ public:
     bool Initialize(int argc, char* argv[])
     {
         Pool::Instance().RegisterStartupCallback(boost::bind(&MyApp::OnPoolStartup, this));
-
         return true;
+    }
+
+    void OnTimeout()
+    {
+        //PoolObject<Timer<void> >::Instance().SetTimeout(this, 5000);
+
+        std::map<std::string, std::string>& stClientConfig = Configure::Get("client_interface");
+
+        sockaddr_in addr;
+        bzero(&addr, sizeof(sockaddr_in));
+        addr.sin_family = PF_INET;
+        addr.sin_port = htons(atoi(stClientConfig["port"].c_str()));
+        addr.sin_addr.s_addr = inet_addr(stClientConfig["ip"].c_str());
+
+        MyTcpClient* pClient = NULL;
+        ConnectionPool<MyTcpClient>& stPool = PoolObject<ConnectionPool<MyTcpClient> >::Instance();
+        if(0 != stPool.Attach(addr, &pClient) || pClient == NULL)
+        {
+            fprintf(stderr, "error: attach connection fail.\n");
+            return;
+        }
+
+        if(!pClient->IsConnected())
+        {
+            timeval tv;
+            tv.tv_sec = 0;
+            tv.tv_usec = 100000;
+
+            if(0 != pClient->Connect(addr, &tv))
+            {
+                fprintf(stderr, "error: connect server fail.\n");
+            }
+            return;
+        }
+
+        pClient->SendRequest();
     }
 
     bool OnPoolStartup()
     {
-        sockaddr_in addr;
-        bzero(&addr, sizeof(sockaddr_in));
-        addr.sin_family = PF_INET;
-        addr.sin_addr.s_addr = inet_addr("0.0.0.0");
-        addr.sin_port = htons(1234);
+        // 10s
+        PoolObject<ConnectionPool<MyTcpClient> >::Instance().SetIdleTimeout(5000);
 
-        timeval tv;
-        bzero(&tv, sizeof(timeval));
-        tv.tv_usec = 200000;
-
-        m_Client.Connect(addr, &tv);
+        PoolObject<Timer<void> >::Instance().SetTimeout(this, 4000);
         return true;
     }
 
-    MyTcpClient m_Client;
 };
 
 AppRun(MyApp);

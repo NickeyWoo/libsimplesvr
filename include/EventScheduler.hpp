@@ -8,6 +8,9 @@
 #ifndef __EVENTSCHEDULER_HPP__
 #define __EVENTSCHEDULER_HPP__
 
+#include <sys/types.h>
+#include <sys/select.h>
+#include <poll.h>
 #include <pthread.h>
 #include <utility>
 #include <string>
@@ -109,47 +112,20 @@ public:
         return Wait(&pService->m_ServerInterface, events, timeout);
     }
 
-    struct WaitInfo {
-        fd_set* readfds;
-        fd_set* writefds;
-        fd_set* errorfds;
-    };
-
     template<typename ChannelDataT>
-    int Wait(ServerInterface<ChannelDataT>* pServerInterface, int events, timeval* timeout = NULL)
+    int Wait(ServerInterface<ChannelDataT>* pServerInterface, int events, timeval* tv = NULL)
     {
-        int waitfd = pServerInterface->m_Channel.Socket;
+        pollfd stPollInfo;
+        bzero(&stPollInfo, sizeof(pollfd));
 
-        WaitInfo info;
-        bzero(&info, sizeof(WaitInfo));
+        stPollInfo.fd = pServerInterface->m_Channel.Socket;
+        stPollInfo.events = POLLIN;
 
-        fd_set rfds, wfds, efds;
-        if((events & PollT::POLLERR) == PollT::POLLERR)
-        {
-            FD_ZERO(&efds);
-            FD_SET(waitfd, &efds);
-            info.errorfds = &efds;
-        }
+        int timeout = -1;
+        if(tv != NULL)
+            timeout = (tv->tv_sec * 1000000 + tv->tv_usec) / 1000;
 
-        if((events & PollT::POLLOUT) == PollT::POLLOUT)
-        {
-            FD_ZERO(&wfds);
-            FD_SET(waitfd, &wfds);
-            info.writefds = &wfds;
-        }
-
-        if((events & PollT::POLLIN) == PollT::POLLIN)
-        {
-            FD_ZERO(&rfds);
-            FD_SET(waitfd, &rfds);
-            info.readfds = &rfds;
-        }
-
-        return select(waitfd + 1,
-                        info.readfds,
-                        info.writefds,
-                        info.errorfds,
-                        timeout);
+        return poll(&stPollInfo, 1, timeout);
     }
 
     void Dispatch()
@@ -164,11 +140,11 @@ public:
             {
                 if(ready > 0)
                 {
-                    if((events & PollT::POLLERR) == PollT::POLLERR)
+                    if((events & PollT::ERR) == PollT::ERR)
                         pInterface->OnError();
-                    else if((events & PollT::POLLIN) == PollT::POLLIN)
+                    else if((events & PollT::IN) == PollT::IN)
                         pInterface->OnReadable();
-                    else if((events & PollT::POLLOUT) == PollT::POLLOUT)
+                    else if((events & PollT::OUT) == PollT::OUT)
                         pInterface->OnWriteable();
                 }
                 else if(ready == 0)

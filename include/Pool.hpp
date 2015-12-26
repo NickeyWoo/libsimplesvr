@@ -32,6 +32,12 @@ public:
         return m_bStartup;
     }
 
+    template<typename T>
+    void RegisterStartupCallback(T* pObj, bool front = false)
+    {
+        RegisterStartupCallback(boost::bind(&T::OnPoolStartup, pObj), front);
+    }
+
     inline void RegisterStartupCallback(boost::function<bool(void)> callback, bool front = false)
     {
         if(front)
@@ -84,6 +90,12 @@ public:
     inline bool IsStartup()
     {
         return m_bStartup;
+    }
+
+    template<typename T>
+    void RegisterStartupCallback(T* pObj, bool front = false)
+    {
+        RegisterStartupCallback(boost::bind(&T::OnPoolStartup, pObj), front);
     }
 
     inline void RegisterStartupCallback(boost::function<bool(void)> callback, bool front = false)
